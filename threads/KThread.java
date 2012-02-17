@@ -276,7 +276,12 @@ public class KThread {
 	Lib.debug(dbgThread, "Joining to thread: " + toString());
 
 	Lib.assertTrue(this != currentThread);
-
+	if (this.status != statusFinished){
+		Semaphore sem = new Semaphore(0);
+		sem.P();
+		this.runThread();
+		sem.V();
+	}
     }
 
     /**

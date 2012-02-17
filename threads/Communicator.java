@@ -1,6 +1,7 @@
 package nachos.threads;
 
 import nachos.machine.*;
+import java.util.*; 
 
 /**
  * A <i>communicator</i> allows threads to synchronously exchange 32-bit
@@ -14,6 +15,12 @@ public class Communicator {
      * Allocate a new communicator.
      */
     public Communicator() {
+    	numSpeaker = 0;
+    	numListener = 0;
+    	buffer = new LinkedList<Integer>();
+    	lck = new Lock();
+    	listener = new Condition(lck);
+    	speaker = new Condition(lck);
     }
 
     /**
@@ -27,6 +34,15 @@ public class Communicator {
      * @param	word	the integer to transfer.
      */
     public void speak(int word) {
+    	lck.acquire();
+    	buffer.add((Integer) word);
+    	numSpeaker++;
+    	while (numListener == 0){
+    		speaker.sleep();
+    	}
+    	listener.wake();
+    	numListener--;
+    	lck.release();
     }
 
     /**
@@ -36,6 +52,21 @@ public class Communicator {
      * @return	the integer transferred.
      */    
     public int listen() {
-	return 0;
+    	lck.acquire();
+    	numListener++;
+    	while (numSpeaker == 0 && buffer.isEmpty()){
+    		listener.sleep();
+    	}
+    	speaker.wake();
+    	numSpeaker--;
+    	lck.release();
+    	return ((int) buffer.removeFirst());
     }
+    
+    private int numSpeaker;
+    private int numListener;
+    private LinkedList<Integer> buffer;
+    private Condition speaker;
+    private Condition listener;
+    private Lock lck;
 }
