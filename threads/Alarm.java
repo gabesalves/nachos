@@ -58,7 +58,6 @@ public class Alarm {
      * @see	nachos.machine.Timer#getTime()
      */
     public void waitUntil(long x) {
-	// for now, cheat just to get something working (busy waiting is bad)
 	long wakeTime = Machine.timer().getTime() + x;
 	KThread thread = KThread.currentThread();
 	ThreadTime threadTime = new ThreadTime(thread, wakeTime);

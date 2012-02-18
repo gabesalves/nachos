@@ -21,6 +21,7 @@ public class Communicator {
     	lck = new Lock();
     	listener = new Condition(lck);
     	speaker = new Condition(lck);
+    	finished = false;
     }
 
     /**
@@ -33,15 +34,21 @@ public class Communicator {
      *
      * @param	word	the integer to transfer.
      */
+    
     public void speak(int word) {
     	lck.acquire();
     	buffer.add((Integer) word);
     	numSpeaker++;
     	while (numListener == 0){
+    		finished = false;
     		speaker.sleep();
     	}
-    	listener.wake();
+    	listener.wake(); //wake up remaining listener 
+    	while (!finished){
+    		speaker.sleep();
+    	}
     	numListener--;
+    	finished = false;
     	lck.release();
     }
 
@@ -59,6 +66,7 @@ public class Communicator {
     	}
     	speaker.wake();
     	numSpeaker--;
+    	finished = true;
     	lck.release();
     	return ((int) buffer.removeFirst());
     }
@@ -69,4 +77,5 @@ public class Communicator {
     private Condition speaker;
     private Condition listener;
     private Lock lck;
+    private boolean finished;
 }
