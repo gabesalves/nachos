@@ -276,7 +276,15 @@ public class KThread {
 	Lib.debug(dbgThread, "Joining to thread: " + toString());
 
 	Lib.assertTrue(this != currentThread);
-
+	
+	boolean intStatus = Machine.interrupt().disable();
+	if (this.status != statusFinished){
+		// enable priority donation
+		ThreadQueue waitQueue = ThreadedKernel.scheduler.newThreadQueue(true);
+		waitQueue.acquire(this);
+		waitQueue.waitForAccess(currentThread); 
+	}
+	Machine.interrupt().restore(intStatus);
     }
 
     /**
