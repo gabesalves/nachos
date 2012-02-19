@@ -5,8 +5,7 @@ import nachos.machine.*;
 import java.util.TreeSet;
 import java.util.HashSet;
 import java.util.Iterator;
-
-import Alarm.ThreadTime;
+import java.util.PriorityQueue;
 
 /**
  * A scheduler that chooses threads based on their priorities.
@@ -44,7 +43,7 @@ public class PriorityScheduler extends Scheduler {
      * @return	a new priority thread queue.
      */
     public ThreadQueue newThreadQueue(boolean transferPriority) {
-	return new PriorityQueue(transferPriority);
+	return new PriorityThreadQueue(transferPriority);
     }
 
     public int getPriority(KThread thread) {
@@ -127,8 +126,8 @@ public class PriorityScheduler extends Scheduler {
     /**
      * A <tt>ThreadQueue</tt> that sorts threads by priority.
      */
-    protected class PriorityQueue extends ThreadQueue {
-	PriorityQueue(boolean transferPriority) {
+    protected class PriorityThreadQueue extends ThreadQueue {
+	PriorityThreadQueue(boolean transferPriority) {
 	    this.transferPriority = transferPriority;
 	}
 
@@ -144,15 +143,15 @@ public class PriorityScheduler extends Scheduler {
 
 	public KThread nextThread() {
 	    Lib.assertTrue(Machine.interrupt().disabled());
-	    thread = this.pickNextThread();
-	    this.priorityQueue.remove(thread);
-	    if (this.transferPriority) {
+	    ThreadState threadState = this.pickNextThread();
+	    priorityQueue.remove(threadState);
+	    if (transferPriority) {
 	    	//take away current dequeuedThread's donated priority
-	    	this.dequeuedThread -= thread.getEffectivePriority();
-	    	thread.effectivePriority += this.pickNextThread().getEffectivePriority();
+	    	this.dequeuedThread.effectivePriority -= threadState.getEffectivePriority();
+	    	threadState.effectivePriority += this.pickNextThread().getEffectivePriority();
 	    }
-	    this.dequeuedThread = thread;
-	    return thread.thread;
+	    this.dequeuedThread = threadState;
+	    return threadState.thread;
 	}
 
 	/**
@@ -251,11 +250,10 @@ public class PriorityScheduler extends Scheduler {
 	 *
 	 * @see	nachos.threads.ThreadQueue#waitForAccess
 	 */
-	public void waitForAccess(PriorityQueue waitQueue) {
-	    if waitQueue.transferPriority and (waitQueue.dequeuedThread.getEffectivePriority() <
-	    		waitQueue.dequeuedThread.getPriority() + this.getEffectivePriority())
-	    	waitQueue.dequedThread.effectivePriority =
-	    		waitQueue.dequeuedThread.getPriority() + this.getEffectivePriority();
+	public void waitForAccess(PriorityThreadQueue waitQueue) {
+	    if (waitQueue.transferPriority && (waitQueue.dequeuedThread.getEffectivePriority() < waitQueue.dequeuedThread.getPriority() + this.getEffectivePriority())) {
+	    	waitQueue.dequeuedThread.effectivePriority = waitQueue.dequeuedThread.getPriority() + this.getEffectivePriority();
+	    }
 	    waitQueue.priorityQueue.add(this);
 	}
 
@@ -269,7 +267,7 @@ public class PriorityScheduler extends Scheduler {
 	 * @see	nachos.threads.ThreadQueue#acquire
 	 * @see	nachos.threads.ThreadQueue#nextThread
 	 */
-	public void acquire(PriorityQueue waitQueue) {
+	public void acquire(PriorityThreadQueue waitQueue) {
 	    Lib.assertTrue(waitQueue.dequeuedThread == null);
 	    waitQueue.dequeuedThread = this;
 	}
@@ -290,10 +288,10 @@ public class PriorityScheduler extends Scheduler {
 	/** The thread with which this object is associated. */	   
 	protected KThread thread;
 	/** The priority of the associated thread. */
-	protected int priority = defaultPriority;
+	protected int priority = priorityDefault;
 	/** The effective priority of the associated thread. */
-	protected int effectivePriority = defaultPriority;
+	protected int effectivePriority = priorityDefault;
 	/** The age of the thread state relative to Nachos time. */
-	protected age = Machine.timer().getTime();
+	protected long age = Machine.timer().getTime();
     }
 }
