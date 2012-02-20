@@ -29,6 +29,7 @@ public class AutoGrader {
      * 				machine.
      */
     public void start(Privilege privilege) {
+
 	Lib.assertTrue(this.privilege == null,
 		   "start() called multiple times");
 	this.privilege = privilege;
@@ -46,7 +47,7 @@ public class AutoGrader {
 	kernel =
 	    (Kernel) Lib.constructObject(Config.getString("Kernel.kernel"));
 	kernel.initialize(args);
-
+	
 	run();
     }
 

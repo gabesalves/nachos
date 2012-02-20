@@ -73,6 +73,7 @@ public class Semaphore {
 	}
 	
 	public void run() {
+		System.out.println("Helen in Semaphore");
 	    for (int i=0; i<10; i++) {
 		ping.P();
 		pong.V();
@@ -91,7 +92,6 @@ public class Semaphore {
 	Semaphore pong = new Semaphore(0);
 
 	new KThread(new PingTest(ping, pong)).setName("ping").fork();
-
 	for (int i=0; i<10; i++) {
 	    ping.V();
 	    pong.P();

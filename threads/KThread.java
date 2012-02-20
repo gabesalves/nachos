@@ -281,8 +281,11 @@ public class KThread {
 	if (this.status != statusFinished){
 		// enable priority donation
 		ThreadQueue waitQueue = ThreadedKernel.scheduler.newThreadQueue(true);
-		waitQueue.acquire(this);
-		waitQueue.waitForAccess(currentThread); 
+		waitQueue.acquire(this); //give this access => This now holds the resource of this waitQueue
+		// Assuming priority donation happens as soon as something is added to the queue
+		waitQueue.waitForAccess(currentThread); //put currentThread to this waitQueue so it can donate its priority
+		KThread.sleep(); // set the status of current Thread to Blocked
+						 // allowing this thread to run with higher priority
 	}
 	Machine.interrupt().restore(intStatus);
     }
@@ -398,7 +401,9 @@ public class KThread {
 	    for (int i=0; i<5; i++) {
 		System.out.println("*** thread " + which + " looped "
 				   + i + " times");
+		System.out.println("helen in KThread");
 		currentThread.yield();
+		
 	    }
 	}
 
@@ -409,6 +414,7 @@ public class KThread {
      * Tests whether this module is working.
      */
     public static void selfTest() {
+   
 	Lib.debug(dbgThread, "Enter KThread.selfTest");
 	
 	new KThread(new PingTest(1)).setName("forked thread").fork();
