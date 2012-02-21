@@ -14,7 +14,7 @@ public class Boat
 		BoatGrader b = new BoatGrader();
 
 		System.out.println("\n ***Testing Boats with only 2 children***");
-		begin(2, 246, b);
+		begin(0, 2, b);
 
 		//	System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
 		//  	begin(1, 2, b);
@@ -40,7 +40,7 @@ public class Boat
 		childrenWaitingOnMolokai = new Condition(lck);
 		waitingOnBoat = new Condition(lck);
 		boatProblem = new Condition(lck);
-		
+
 
 		// boat starts on Oahu
 		boatLocation = "Oahu";
@@ -102,8 +102,8 @@ public class Boat
 		childrenWaitingOnMolokai.wakeAll();
 		adultsWaitingOnOahu.wakeAll();
 		lck.release();
-		
-		System.out.println("End of boat test");
+
+		//System.out.println("End of boat test");
 
 	}
 
@@ -156,30 +156,32 @@ public class Boat
 				adultsWaitingOnOahu.wake(); //wake up adult
 			}	
 			// Case 1: boat ready, boat not full
-			childRun(boatLocation); 	//run, update stuffs
-			if (maybeFinished()){    // could be fake
-				boatProblem.wake();
-				adultsWaitingOnOahu.wake(); 
-				childrenWaitingOnMolokai.sleep();
-			}else{
-				if (tryToGetOnBoat){
-					childrenWaitingOnOahu.wake();
-					tryToGetOnBoat = false;
-					onBoat = true;
-					waitingOnBoat.sleep();			
+			if (!done){
+				childRun(boatLocation); 	//run, update stuffs
+				if (maybeFinished()){    // could be fake
+					boatProblem.wake();
+					adultsWaitingOnOahu.wake(); 
+					childrenWaitingOnMolokai.sleep();
 				}else{
-					if (boatLocation.equals("Oahu")){
+					if (tryToGetOnBoat){
 						childrenWaitingOnOahu.wake();
-						adultsWaitingOnOahu.wake();
-						childrenWaitingOnOahu.sleep();
+						tryToGetOnBoat = false;
+						onBoat = true;
+						waitingOnBoat.sleep();			
 					}else{
-						if (onBoat){
-							waitingOnBoat.wake();
-							onBoat = false;
+						if (boatLocation.equals("Oahu")){
+							childrenWaitingOnOahu.wake();
+							adultsWaitingOnOahu.wake();
+							childrenWaitingOnOahu.sleep();
+						}else{
+							if (onBoat){
+								waitingOnBoat.wake();
+								onBoat = false;
+							}
+							childrenWaitingOnMolokai.wake();	//wake up other threads
+							adultsWaitingOnOahu.wake();
+							childrenWaitingOnMolokai.sleep();  //wait for possible future calls
 						}
-						childrenWaitingOnMolokai.wake();	//wake up other threads
-						adultsWaitingOnOahu.wake();
-						childrenWaitingOnMolokai.sleep();  //wait for possible future calls
 					}
 				}
 			}
