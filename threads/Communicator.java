@@ -86,7 +86,69 @@ public class Communicator {
 		lck.release();
 		return holder;
 	}
+	
+	private static class CommuTest implements Runnable{
+		
+		public void run(){
+			KThread.yield();
+		}
+	}
 
+	public static void selfTest(){
+		/**
+		final Communicator c = new Communicator();
+		
+		// For 4 listeners
+		for (int j = 1; j < 5; j++){
+			final int jtemp = j;
+			KThread temp = new KThread( new Runnable(){
+				public void run(){
+					System.out.println("Listener " + jtemp + " gets " + c.listen());
+				}
+			});
+			temp.fork();
+		}
+		
+		// Fork 4 speakers
+		for (int i = 1; i < 5; i++){	
+			final int itemp = i;
+			KThread temp = new KThread( new Runnable(){
+				public void run(){
+					System.out.println("Speaker " + itemp + " is about to speaks");
+					c.speak(itemp);
+				}
+			});
+			temp.fork();
+		} // end for loop
+		
+		new CommuTest().run();
+		**/
+		
+		final Communicator commu = new Communicator();
+	
+		KThread thread2 = new KThread(new Runnable() {
+		    public void run() {
+		         System.out.println("Thread 2 begin listening");
+			 commu.listen();
+		         System.out.println("Thread 2 finished listening");
+		    }
+		});
+		
+		KThread thread1 = new KThread(new Runnable() {
+		    public void run() {
+			 System.out.println("Thread 1 begin speaking");
+			 commu.speak(2);
+		         System.out.println("Thread 1 finished speaking");
+		    }
+		});
+		
+		thread1.fork();
+		thread2.fork();
+		thread1.join();
+		thread2.join();
+		
+		
+	}
 
 	private Condition speakerWaitingQueue; //queue of speakers that are waiting for listeners
 	private Condition speakerSending; //queue of speaker that just sent out a word (should have length 1)

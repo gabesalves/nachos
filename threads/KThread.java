@@ -284,9 +284,11 @@ public class KThread {
 		waitQueue.acquire(this); //give this access => This now holds the resource of this waitQueue
 		// Assuming priority donation happens as soon as something is added to the queue
 		waitQueue.waitForAccess(currentThread); //put currentThread to this waitQueue so it can donate its priority
-		KThread.sleep(); // set the status of current Thread to Blocked
-						 // allowing this thread to run with higher priority
-	}
+		KThread.yield();  //Must be here to blocked out currentThread.
+	}	
+	//if (currentThread.status == statusBlocked){
+	//	readyQueue.waitForAccess(currentThread);
+	//}
 	Machine.interrupt().restore(intStatus);
     }
 
@@ -418,6 +420,52 @@ public class KThread {
 	
 	new KThread(new PingTest(1)).setName("forked thread").fork();
 	new PingTest(0).run();
+    }
+    
+    public static class TestJoin{
+		public TestJoin(KThread t1, KThread t2){
+			this.t1 = t1;
+			this.t2 = t2;
+		}
+		
+		public void run(){
+			KThread.yield();
+		}
+		
+		public KThread t1;
+		public KThread t2;
+	}
+
+    
+    public static void selfTest2(){
+    	    	
+    	Runnable r2 = new Runnable(){
+    		public void run(){
+    			System.out.println("Child thread runs");
+    		}
+    	};
+    	final KThread thread2 = new KThread(r2);
+    	thread2.setName("thread2");
+    	
+    	Runnable r1 = new Runnable(){
+    		public void run(){
+    			System.out.println("Parent runs but decides it needs to join with child");
+    			thread2.join();
+    			System.out.println("Child successfully join and Parent continues");
+    		}
+    	};
+    	
+    	KThread thread1 = new KThread(r1);
+    	thread1.setName("thread1");
+    	thread1.fork();
+    	thread2.fork();
+    	new TestJoin(thread1, thread2).run();
+
+    	//boolean intStatus = Machine.interrupt().disable();
+    	//thread1.run();
+    	//Machine.interrupt().restore(intStatus);
+
+    	
     }
 
     private static final char dbgThread = 't';
