@@ -14,7 +14,7 @@ public class Boat
 		BoatGrader b = new BoatGrader();
 
 		System.out.println("\n ***Testing Boats with only 2 children***");
-		begin(5, 5, b);
+		begin(0, 2, b);
 
 		//	System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
 		//  	begin(1, 2, b);
@@ -102,7 +102,8 @@ public class Boat
 		childrenWaitingOnMolokai.wakeAll();
 		adultsWaitingOnOahu.wakeAll();
 		lck.release();
-		System.out.println("End of boat test");
+		
+		//System.out.println("End of boat test");
 
 	}
 
