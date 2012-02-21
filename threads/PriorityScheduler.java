@@ -149,7 +149,7 @@ public class PriorityScheduler extends Scheduler {
 			Lib.assertTrue(Machine.interrupt().disabled());
 			ThreadState threadState = this.pickNextThread();
 			priorityQueue.remove(threadState);
-			if (transferPriority) {
+			if (transferPriority && threadState != null) {
 				//take away current dequeuedThread's donated priority
 				//Edit: Simply remove that waitQueue from dequeuedThread's linkedList
 				//Edit: For new thread just add waitQueue to list
@@ -157,6 +157,10 @@ public class PriorityScheduler extends Scheduler {
 				threadState.addQueue(this);
 			}
 			this.dequeuedThread = threadState;
+			if (threadState == null){
+				this.priorityQueue = new PriorityQueue<ThreadState>();
+				return null;
+			}
 			return threadState.thread;
 		}
 
@@ -172,7 +176,7 @@ public class PriorityScheduler extends Scheduler {
 
 			//ensure priorityQueue is properly ordered
 			//does this take the old priorityQueue and reorder it? YES!!!
-			this.priorityQueue = new PriorityQueue<ThreadState>(this.priorityQueue);
+			//this.priorityQueue = new PriorityQueue<ThreadState>(priorityQueue);
 
 			Machine.interrupt().restore(intStatus);
 			return this.priorityQueue.peek();
@@ -213,7 +217,6 @@ public class PriorityScheduler extends Scheduler {
 			this.thread = thread;
 			//initialize the onQueue linkedlist
 			this.onQueues = new LinkedList<PriorityThreadQueue>();
-			this.age = Machine.timer().getTime();
 		}
 
 		/**
@@ -239,9 +242,11 @@ public class PriorityScheduler extends Scheduler {
 				Iterator<PriorityThreadQueue> iter = onQueues.iterator();
 				while(iter.hasNext()){
 					PriorityThreadQueue current = iter.next();
-					int currentEP = current.pickNextThread().getEffectivePriority();
-					if (currentEP > maxEP && current.transferPriority){ //When do we check transferPriority?
-						maxEP = currentEP;
+					if (!current.priorityQueue.isEmpty()){
+						int currentEP = current.pickNextThread().getEffectivePriority();
+						if (currentEP > maxEP && current.transferPriority){ //When do we check transferPriority?
+							maxEP = currentEP;
+						}
 					}
 				}
 			}
@@ -277,6 +282,8 @@ public class PriorityScheduler extends Scheduler {
 		 * @see nachos.threads.ThreadQueue#waitForAccess
 		 */
 		public void waitForAccess(PriorityThreadQueue waitQueue) {
+		    Lib.assertTrue(Machine.interrupt().disabled());
+		    this.age = Machine.timer().getTime();
 			waitQueue.priorityQueue.add(this);
 		}
 
@@ -293,21 +300,24 @@ public class PriorityScheduler extends Scheduler {
 		public void acquire(PriorityThreadQueue waitQueue) {
 			//Seems good, checks to see if queue is empty, if it is just make it dequeued thread.
 			//needs to add waitQueue
-			Lib.assertTrue(waitQueue.dequeuedThread == null);
+		    Lib.assertTrue(Machine.interrupt().disabled());
+			Lib.assertTrue(waitQueue.priorityQueue.isEmpty());
 			waitQueue.dequeuedThread = this;
 			this.addQueue(waitQueue);
 		}
 
 		public int compareTo(ThreadState threadState){
 			//changed first if from > to <
-			if (this.getEffectivePriority() < threadState.getEffectivePriority()){
+			if (threadState == null)
 				return -1;
-			}else{ if (this.getEffectivePriority() > threadState.getEffectivePriority()){
+			if (this.getEffectivePriority() < threadState.getEffectivePriority()){
 				return 1;
+			}else{ if (this.getEffectivePriority() > threadState.getEffectivePriority()){
+				return -1;
 			}else{
 				if (this.age >= threadState.age)
-					return -1;
-				else{ return 1; }
+					return 1;
+				else{ return -1; }
 			}
 			}
 		}
@@ -317,6 +327,10 @@ public class PriorityScheduler extends Scheduler {
 		}
 		public void addQueue(PriorityThreadQueue queue){
 			onQueues.add(queue);
+		}
+		
+		public String toString() {
+			return "ThreadState thread=" + thread + ", priority=" + getPriority() + ", effective priority=" + getEffectivePriority();
 		}
 		/** The thread with which this object is associated. */
 		protected KThread thread;
