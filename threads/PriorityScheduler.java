@@ -123,6 +123,66 @@ public class PriorityScheduler extends Scheduler {
 
 		return (ThreadState) thread.schedulingState;
 	}
+	
+	public static void selfTest() {
+		System.out.println("---------PriorityScheduler test---------------------");
+		PriorityScheduler s = new PriorityScheduler();
+		ThreadQueue queue = s.newThreadQueue(true);
+		ThreadQueue queue2 = s.newThreadQueue(true);
+		ThreadQueue queue3 = s.newThreadQueue(true);
+		
+		KThread thread1 = new KThread();
+		KThread thread2 = new KThread();
+		KThread thread3 = new KThread();
+		KThread thread4 = new KThread();
+		KThread thread5 = new KThread();
+		thread1.setName("thread1");
+		thread2.setName("thread2");
+		thread3.setName("thread3");
+		thread4.setName("thread4");
+		thread5.setName("thread5");
+
+		
+		boolean intStatus = Machine.interrupt().disable();
+		
+		queue3.acquire(thread1);
+		queue.acquire(thread1);
+		queue.waitForAccess(thread2);
+		queue2.acquire(thread4);
+		queue2.waitForAccess(thread1);
+		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+		System.out.println("thread2 EP="+s.getThreadState(thread2).getEffectivePriority());
+		System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+		
+		s.getThreadState(thread2).setPriority(3);
+		
+		System.out.println("After setting thread2's EP=3:");
+		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+		System.out.println("thread2 EP="+s.getThreadState(thread2).getEffectivePriority());
+		System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+		
+		queue.waitForAccess(thread3);
+		s.getThreadState(thread3).setPriority(5);
+		
+		System.out.println("After adding thread3 with EP=5:");
+		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+		System.out.println("thread2 EP="+s.getThreadState(thread2).getEffectivePriority());
+		System.out.println("thread3 EP="+s.getThreadState(thread3).getEffectivePriority());
+		System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+		
+		s.getThreadState(thread3).setPriority(2);
+		
+		System.out.println("After setting thread3 EP=2:");
+		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+		System.out.println("thread2 EP="+s.getThreadState(thread2).getEffectivePriority());
+		System.out.println("thread3 EP="+s.getThreadState(thread3).getEffectivePriority());
+		System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+		
+		System.out.println("Thread1 acquires queue and queue3");
+		
+		Machine.interrupt().restore(intStatus);
+		System.out.println("--------End PriorityScheduler test------------------");
+	}
 
 	/**
 	 * A <tt>ThreadQueue</tt> that sorts threads by priority.
@@ -155,9 +215,8 @@ public class PriorityScheduler extends Scheduler {
 			priorityQueue.remove(threadState);
 			if (transferPriority && threadState != null) {
 				this.dequeuedThread.removeQueue(this);
-				this.dequeuedThread.calcEffectivePriority();
+				threadState.waiting = null;
 				threadState.addQueue(this);
-				threadState.calcEffectivePriority();
 			}
 			this.dequeuedThread = threadState;
 			if (threadState == null){
@@ -222,6 +281,7 @@ public class PriorityScheduler extends Scheduler {
 			this.onQueues = new LinkedList<PriorityThreadQueue>();
 			this.age = Machine.timer().getTime();
 			this.effectivePriority = priorityDefault;
+			this.waiting = null;
 		}
 
 		/**
@@ -232,49 +292,24 @@ public class PriorityScheduler extends Scheduler {
 		public int getPriority() {
 			return priority;
 		}
-
 		/**
-		 * Return the effective priority of the associated thread.
-		 * We need to make a lot of changes on this part
-		 * Instead of just returning effectivePriority it needs to be computed
-		 * Should be simple enough by looking at the top of each queue on onQueues
-		 * @return the effective priority of the associated thread.
+		 * Calculate the Effective Priority of a thread and the thread that currently holds the resource
+		 * it is waiting on.
 		 */
-		public void calcEffectivePriority2() {
-			int initialPriority = this.getPriority();
-			int maxEP = -1;
-			if (onQueues.size() != 0){
-				Iterator<PriorityThreadQueue> iter = onQueues.iterator();
-				while(iter.hasNext()){
-					PriorityThreadQueue current = iter.next();
-					if (!current.priorityQueue.isEmpty()){
-						//System.out.println(current);
-						//System.out.println(maxEP);
-						//System.out.println(onQueues);
-						int currentEP = current.pickNextThread().getEffectivePriority();
-						if (currentEP > maxEP && current.transferPriority){ //When do we check transferPriority?
-							maxEP = currentEP;
-						}
-					}
-				}
-			}
-			if (initialPriority > maxEP){
-				maxEP = initialPriority;
-			}
-			this.effectivePriority = maxEP;
-		}
 		public void calcEffectivePriority() {
 			int initialPriority = this.getPriority();
 			int maxEP = -1;
 			if (onQueues.size() != 0){
+				//System.out.println(this.thread+", EP="+this.getEffectivePriority());
 				int size = onQueues.size();
+				//System.out.println(size);
 				for(int i = 0; i < size; i++){
 					PriorityThreadQueue current = onQueues.get(i);
 					ThreadState donator = current.pickNextThread();
 					if (donator != null){
-						if ((donator.getEffectivePriority() > maxEP) && current.transferPriority){
+						//System.out.println(donator.thread+", EP="+donator.getEffectivePriority());
+						if ((donator.getEffectivePriority() > maxEP) && current.transferPriority)
 							maxEP = donator.getEffectivePriority();
-						}
 					}
 				}
 			}
@@ -282,6 +317,14 @@ public class PriorityScheduler extends Scheduler {
 				maxEP = initialPriority;
 			}
 			this.effectivePriority = maxEP;
+			//System.out.println(this.effectivePriority);
+			//now that my own effectivePriority Changes I have to recalculate the threads which i am waiting on
+			if (this.waiting != null && this.waiting.dequeuedThread != null){
+				if (this.effectivePriority != this.waiting.dequeuedThread.effectivePriority){
+					this.waiting.dequeuedThread.calcEffectivePriority();
+				}
+			};
+			//System.out.println(this.effectivePriority);
 		}
 
 		public int getEffectivePriority() {
@@ -300,6 +343,9 @@ public class PriorityScheduler extends Scheduler {
 			//this.effectivePriority = effectivePriority - (this.priority - priority);
 			this.priority = priority;
 			this.calcEffectivePriority();
+			if(this.waiting != null && this.waiting.dequeuedThread != null)
+				this.waiting.dequeuedThread.calcEffectivePriority();
+			//this.waiting.dequeuedThread.calcEffectivePriority();
 		}
 
 		/**
@@ -319,7 +365,8 @@ public class PriorityScheduler extends Scheduler {
 			long time = Machine.timer().getTime();
 			this.age = time;
 			waitQueue.priorityQueue.add(this);
-			waitQueue.pickNextThread().calcEffectivePriority();
+			this.waiting = waitQueue;
+			this.calcEffectivePriority();
 		}
 
 		/**
@@ -360,9 +407,11 @@ public class PriorityScheduler extends Scheduler {
 
 		public void removeQueue(PriorityThreadQueue queue){
 			onQueues.remove(queue);
+			this.calcEffectivePriority();
 		}
 		public void addQueue(PriorityThreadQueue queue){
 			onQueues.add(queue);
+			this.calcEffectivePriority();
 		}
 
 		public String toString() {
@@ -381,5 +430,7 @@ public class PriorityScheduler extends Scheduler {
 		/** a linkedlist representing all the waitqueues it is getting priority from.*/
 		protected LinkedList<PriorityThreadQueue> onQueues;
 		protected int effectivePriority;
+		protected PriorityThreadQueue waiting;
+
 	}
 }
