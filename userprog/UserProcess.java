@@ -6,6 +6,8 @@ import nachos.userprog.*;
 
 import java.io.EOFException;
 
+import sun.management.FileSystem;
+
 /**
  * Encapsulates the state of a user process that is not contained in its
  * user thread (or threads). This includes its address translation state, a
@@ -27,6 +29,16 @@ public class UserProcess {
 	pageTable = new TranslationEntry[numPhysPages];
 	for (int i=0; i<numPhysPages; i++)
 	    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+	
+	//Initialize variables use for project 2
+	fileDescriptorTable = OpenFile[15];
+	fileDescriptorTable[0] = UserKernal.console.openForWriting();
+	fileDescriptorTable[1] = UserKernal.console.openForReading();
+	childProcesses = new LinkedList<UserProcess>();
+	parentProcess = null;
+	processIdCounter = 0;
+	processID = 0;
+	fileSystem = ThreadedKernal.fileSystem;
     }
     
     /**
@@ -179,10 +191,31 @@ public class UserProcess {
 	// for now, just assume that virtual addresses equal physical addresses
 	if (vaddr < 0 || vaddr >= memory.length)
 	    return 0;
+	
+	int vpn = Processor.pageFromAddress(vaddr);
+	TranslationEntry translationEntry; 
+	
+	try{ 
+		translationEntry = pageTable[vpn] 
+	}catch(ArrayIndexOutOfBoundsException e ){
+		Lib.debug(dbg, "vpn exceed page length");
+		return 0 
+	}
+	
+	int offset = Processor.offsetFromAddress(vaddr);
+	paddr = translationEntry.ppn  * pageSize + offset; 
+	
+	if (paddr < 0 || paddr >= memory.length)
+	    return 0;
 
-	int amount = Math.min(length, memory.length-vaddr);
-	System.arraycopy(data, offset, memory, vaddr, amount);
-
+	int amount = Math.min(length, memory.length-paddr); //???
+	System.arraycopy(data, offset, memory, paddr, amount);
+	int nextVaddr = vaddr + amount;
+	int nextOffset = offset + amount;
+	int nextLenght = length - amount;
+	
+    amount += writeVirtualMemory(nextVaddr, data, nextOffset, nextLength);
+    
 	return amount;
     }
 
@@ -339,16 +372,190 @@ public class UserProcess {
      * Handle the halt() system call. 
      */
     private int handleHalt() {
-
+    
+    // Added for project 2 //
+    // check if this process is root //
+    if (this.processID != 0){
+    	Lib.debug(dbgProcess, "Program is not root");
+    	return;
+    }
+    
 	Machine.halt();
 	
 	Lib.assertNotReached("Machine.halt() did not halt machine!");
 	return 0;
     }
+    
+    /**
+     * Part 1
+     */
+    
+    private int handleCreate(int vaddr){
+    	// Check name
+    	if (vaddr == null || vaddr < 0){
+    		Lib.debug(dpgProcess, "Invalid virtual address");
+    		return -1;
+    	}
+    	filename = readVirtualMemory(name, 256);
+    	if (filename == null){
+    		Lib.debug(dpgProcess, "Illegal Filename");
+    		return -1;
+    	}
+    	
+    	// check for free fileDescriptor
+    	int emptyIndex = -1;
+    	for(int i=2; i<15; i++){
+    		if(fileDescriptorTable[i] == null){
+    			emptyIndex = i;
+    			break;
+    		}
+    	}
+    	if (emptyIndex == -1){
+    		Lib.debug(dpgProcess, "No free fileDescriptor available");
+    		return -1;
+    	}
+    	
+    	OpenFile file = fileSystem.open(filename, true);
+    	if (file == null){
+    		Lib.debug(dbgProcess, "Cannot create file");
+    		return -1;
+    	}else{
+    		fileDescriptorTable[emptyIndex] = file;
+    		return emptyIndex;
+    	}
+    }
+    
+    private int handleOpen(String name){
+    	// Check name
+    	if (vaddr == null || vaddr < 0){
+    		Lib.debug(dpgProcess, "Invalid virtual address");
+    		return -1;
+    	}
+    	filename = readVirtualMemory(name, 256);
+    	if (filename == null){
+    		Lib.debug(dpgProcess, "Illegal Filename");
+    		return -1;
+    	}
+    	
+    	// check for free fileDescriptor
+    	int emptyIndex = -1;
+    	for(int i=2; i<15; i++){
+    		if(fileDescriptorTable[i] == null){
+    			emptyIndex = i;
+    			break;
+    		}
+    	}
+    	if (emptyIndex == -1){
+    		Lib.debug(dpgProcess, "No free fileDescriptor available");
+    		return -1;
+    	}
+    	
+    	OpenFile file = fileSystem.open(filename, false);
+    	if (file == null){
+    		Lib.debug(dbgProcess, "Cannot create file");
+    		return -1;
+    	}else{
+    		fileDescriptorTable[emptyIndex] = file;
+    		return emptyIndex;
+    	}
+    }
+    
+    private int handleRead(int fileDescriptor, int buffer, int count){
+    	// need to implement readVirtualMemory
+    	
+    }
+    
+    private int handleWrite(int fileDescriptor, int buffer, int count){
+    	// need to implement writeVirtualMemory
+    }
+    
+    private int handleClose(int fileDescriptor){
+    	
+    }
+
+    private int handleUnlink(int name){
+    	
+    }
+    
+    
+    /**
+     * Part 3
+     */
+    
+    
+    private void handleExit(int status){
+    	
+    }
+    
+    private int handleExec(int fileNameVaddr, int numArg, int argOffset){
+    	// Check fileNameVaddr
+    	if (fileNameVaddr==null || fileNameVaddr<0){
+    		Lib.debug(dbgProcess, "Invalid name vaddr");
+    		return -1;
+    	}
+    	// Check string filename
+    	String filename = readVirtualMemoryString(fileNameVaddr, 256);
+    	if (filename == null){
+    		Lib.debug(dbgProcess, "Invalid file name");
+    		return -1;
+    	}
+    	if (filename.split(".").last().toLowerCase() != ".coff"){
+    		Lib.debug(dbgProcess, "File name must end with '.coff'");
+    		return -1;
+    	}
+    	
+    	// Check arguments
+    	if (numArg < 0){
+    		Lib.debug(dbgProcess, "Cannot take negative number of arguments");
+    		return -1;
+    	}
+    	String[] arguments = new String[numArg];
+    	
+    	for(int i=0; i < numArg; i++ ){
+    		byte[] pointer = new byte[4];
+    		int byteRead = readVirtualMemory(argOffset + (i*4), pointer);
+    		// check pointer
+    		if (byteRead != 4){
+    			Lib.debug(dbgProcess, "Pointers are not read correctly");
+    			return -1;
+    		}
+    		int argVaddr = Lib.bytesToInt(pointer, 0);
+    		String argument = readVirtualMemory(argVaddr, 256);
+    		// check argument
+    		if (argument == null){
+    			Lib.debug(dbgProcess, "One or more argument is not read");
+    			return -1;
+    		}
+    		arguments[i] = argument;
+    	}
+    	
+    	UserProcess child = UserProcess.newUserProcess();
+    	if (child.execute(filename, arguments)){
+    		this.childProcesses.add(child);
+    		child.parentProcess = this;
+    		processIdCounter++;
+    		child.processID = processIdCounter;
+    		child.processIdCounter = child.processID;
+    		return child.processID;
+    	}else{
+    		Lib.debug(dbg, "Cannot execute the problem");
+    		return -1;
+    	} 	
+    }
+
+    //status is a pointer
+    private int handleJoin(int processID, int status){
+    	
+    }
+
+
+    
+
+
 
 
     private static final int
-        syscallHalt = 0,
+    syscallHalt = 0,
 	syscallExit = 1,
 	syscallExec = 2,
 	syscallJoin = 3,
@@ -391,15 +598,32 @@ public class UserProcess {
 	switch (syscall) {
 	case syscallHalt:
 	    return handleHalt();
-
-
+	case syscallExit:
+		return handleExit(a0, a1, a2);
+	case syscallExec:
+		return handleExec(a0, a1, a2);
+	case syscallJoin:
+		return handleJoin(a0, a1);
+	case syscallCreate:
+		return handleCreate(a0);
+	case syscallOpen:
+		return handleOpen(a0);
+	case syscallRead:
+		return handleRead(a0, a1, a2);
+	case syscallWrite:
+		return handleWrite(a0, a1, a2);
+	case syscallClose:
+		return handleClose(a0);
+	case syscallUnlink:
+		return handleUnlink(a0);
+		
 	default:
 	    Lib.debug(dbgProcess, "Unknown syscall " + syscall);
 	    Lib.assertNotReached("Unknown system call!");
 	}
 	return 0;
     }
-
+    
     /**
      * Handle a user exception. Called by
      * <tt>UserKernel.exceptionHandler()</tt>. The
@@ -446,4 +670,12 @@ public class UserProcess {
 	
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
+    
+    // new variables for project 2
+    private OpenFile[] fileDescriptorTable;
+    private LinkedList<UserProcess> childProcesses;
+    protected UserProcess parentProcess;
+    private int processIdCounter;
+    private int processID;
+    protected FileSystem fileSystem;
 }
