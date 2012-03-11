@@ -471,7 +471,14 @@ public class UserProcess {
     }
     
     private int handleClose(int fileDescriptor){
-    	return -1;
+        if (fileDescriptorTable[fileDescriptor] == null || 
+            (0 > fileDescriptor) || (fileDescriptor > 16)) {
+            return -1;
+        }
+        
+        fileDescriptorTable[fileDescriptor].close();
+        fileDescriptorTable[fileDescriptor] = null;
+        return 0;
     }
 
     private int handleUnlink(int name){
