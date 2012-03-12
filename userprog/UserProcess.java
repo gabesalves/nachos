@@ -461,13 +461,66 @@ public class UserProcess {
     }
     
     private int handleRead(int fileDescriptor, int buffer, int count){
-    	// need to implement readVirtualMemory
-    	return -1;
+        int bytesRead = 0; //how much we're going to read
+        int returnAmount = 0; //what we're going to return
+        
+        //ERROR: invalid fileDescriptor
+        if(fileDescriptor < 0 || fileDescriptor > 15) { return -1; }
+        
+        //get the file
+        OpenFile file = fileDescriptorTable[fileDescriptor];
+        
+        //ERROR: there's no file at fileDescriptor
+        if(file == null) { return -1; }
+        
+        //the buffer we're going to write to
+        byte[] buffer = new byte[count];
+        
+        //READ FROM FILE
+        bytesRead = file.read(buffer, 0, count);
+        
+        //ERROR: there was an error while reading
+        if(bytesRead == -1) { return -1; }
+        
+        //write from buffer to virtual address space
+        returnAmount = writeVirtualMemory(bufferAddr, buffer, 0, bytesRead);
+        
+        //all done! return the amount of bytes we ended up reading
+        return returnAmount;
     }
     
     private int handleWrite(int fileDescriptor, int buffer, int count){
-    	// need to implement writeVirtualMemory
-    	return -1;
+    	int bytesWritten = 0; //how much we're going to write
+        int returnAmount = 0; //what we're going to return
+        
+        //ERROR: invalid fileDescriptor
+        if(fileDescriptor < 0 || fileDescriptor > 15) { return -1; }
+        
+        //get the file
+        OpenFile file = fileDescriptorTable[fileDescriptor];
+        
+        //ERROR: there's no file at fileDescriptor
+        if(file == null) { return -1; }
+        
+        //the buffer we're going to read from
+        byte[] buffer = new byte[count];
+        
+        //write from virtual address space to buffer
+        bytesWritten = readVirtualMemory(bufferAddr, buffer, 0, count);
+        
+        //ERROR: didn't really all the bytes we wanted to
+        if(bytesWritten != count) { return -1; }
+        
+        //write from buffer to file
+        returnAmount = file.write(buffer, 0, count);
+        
+        //if returnAmount isn't what it should be, ERROR
+        //else, "write" worked and we return the amount of bytes written
+        if(returnAmount == -1 || returnAmount != count) {
+        	return -1;
+        } else {
+        	return returnAmount;
+        }
     }
     
     private int handleClose(int fileDescriptor){
