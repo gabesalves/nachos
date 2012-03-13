@@ -460,7 +460,7 @@ public class UserProcess {
 		}
 	}
 
-	private int handleRead(int fileDescriptor, int buffer, int count){
+	private int handleRead(int fileDescriptor, int bufferAddr, int count){
 		int bytesRead = 0; //how much we're going to read
 		int returnAmount = 0; //what we're going to return
 
@@ -489,7 +489,7 @@ public class UserProcess {
 		return returnAmount;
 	}
 
-	private int handleWrite(int fileDescriptor, int buffer, int count){
+	private int handleWrite(int fileDescriptor, int bufferAddr, int count){
 		int bytesWritten = 0; //how much we're going to write
 		int returnAmount = 0; //what we're going to return
 
