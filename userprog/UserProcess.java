@@ -449,8 +449,20 @@ public class UserProcess {
 	 */
 	protected void unloadSections() {
 		//deallocate physical pages
-		for (int i=0; i<numPages; i++)
+		for (int i=0; i<numPages; i++){
 			UserKernel.availablePages.add(pageTable[i].ppn);
+		}
+		
+		for (int i=0; i<16; i++){
+			if (fileDescriptorTable[i] != null){
+				try{
+					fileDescriptorTable[i].close();
+				}catch(Exception e){
+					System.out.println("who put weird stuffs into my file descriptor table?");
+				}
+			}
+		}
+		
 	}    
 
 	/**
@@ -704,9 +716,6 @@ public class UserProcess {
 		if (child.execute(filename, arguments)){
 			this.childProcesses.add(child);
 			child.parentProcess = this;
-			processIdCounter++;
-			child.processID = processIdCounter;
-			child.processIdCounter = child.processID;
 			return child.processID;
 		}else{
 			Lib.debug(dbgProcess, "Cannot execute the problem");
@@ -884,7 +893,7 @@ public class UserProcess {
 	private OpenFile[] fileDescriptorTable;
 	private LinkedList<UserProcess> childProcesses;
 	private UserProcess parentProcess;
-	private int static processIdCounter = 0;
+	private static int processIdCounter = 0;
 	private int processID;
 	protected int status = -1;
 	protected Condition waiting;
