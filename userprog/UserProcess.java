@@ -202,6 +202,10 @@ public class UserProcess {
 			System.arraycopy(memory, firstPhysAddress, data, offset+numBytesTransferred, offset2-offset1);
 			numBytesTransferred += (offset2-offset1);
 		}
+		
+		String test = new String(data, offset, length);
+		System.out.println();
+		System.out.println("Read '" + test + "'");
 
 		return numBytesTransferred;
 	}
@@ -236,6 +240,9 @@ public class UserProcess {
 	public int writeVirtualMemory(int vaddr, byte[] data, int offset,
 			int length) {
 		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
+		
+		String test = new String(data, offset, length);
+		System.out.println("Write '" + test + "'");
 
 		byte[] memory = Machine.processor().getMemory();
 
