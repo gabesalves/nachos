@@ -644,8 +644,7 @@ public class UserProcess {
 	}
 
 	private int handleClose(int fileDescriptor){
-		if (fileDescriptorTable[fileDescriptor] == null || 
-				(0 > fileDescriptor) || (fileDescriptor > 15)) {
+		if ((fileDescriptor < 0) || (fileDescriptor > 15) || fileDescriptorTable[fileDescriptor] == null ) {
 			return -1;
 		}
 
