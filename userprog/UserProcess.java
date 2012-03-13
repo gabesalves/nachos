@@ -188,12 +188,14 @@ public class UserProcess {
 			//virtual page is last to be transferred
 			else if (vaddr <= firstVirtAddress && vaddr+length < lastVirtAddress){
 				offset1 = 0;
-				offset2 = pageSize - (lastVirtAddress - (vaddr + length));
+				offset2 = (vaddr + length) - firstVirtAddress;
+				//offset2 = pageSize - (lastVirtAddress - (vaddr + length));
 			}
 			//only need inner chunk of a virtual page (special case)
 			else { //(vaddr > firstVirtAddress && vaddr+length < lastVirtAddress)
 				offset1 = vaddr - firstVirtAddress;
-				offset2 = pageSize - (lastVirtAddress - (vaddr + length));
+				offset2 = (vaddr + length) - firstVirtAddress;
+				//offset2 = pageSize - (lastVirtAddress - (vaddr + length));
 			}
 			int firstPhysAddress = Machine.processor().makeAddress(pageTable[i].ppn, offset1);
 			//int lastPhysAddress = Machine.processor().makeAddress(pageTable[i].ppn, offset2);
@@ -266,12 +268,14 @@ public class UserProcess {
 			//virtual page is last to be transferred
 			else if (vaddr <= firstVirtAddress && vaddr+length < lastVirtAddress){
 				offset1 = 0;
-				offset2 = pageSize - (lastVirtAddress - (vaddr + length));
+				offset2 = (vaddr + length) - firstVirtAddress;
+				//offset2 = pageSize - (lastVirtAddress - (vaddr + length));
 			}
 			//only need inner chunk of a virtual page (special case)
 			else { //(vaddr > firstVirtAddress && vaddr+length < lastVirtAddress)
 				offset1 = vaddr - firstVirtAddress;
-				offset2 = pageSize - (lastVirtAddress - (vaddr + length));
+				offset2 = (vaddr + length) - firstVirtAddress;
+				//offset2 = pageSize - (lastVirtAddress - (vaddr + length));
 			}
 			int firstPhysAddress = Machine.processor().makeAddress(pageTable[i].ppn, offset1);
 			//int lastPhysAddress = Machine.processor().makeAddress(pageTable[i].ppn, offset2);
