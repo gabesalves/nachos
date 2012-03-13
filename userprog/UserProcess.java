@@ -524,7 +524,7 @@ public class UserProcess {
 
 		// check for free fileDescriptor
 		int emptyIndex = -1;
-		for(int i=2; i<15; i++){
+		for(int i=2; i<16; i++){
 			if(fileDescriptorTable[i] == null){
 				emptyIndex = i;
 				break;
@@ -559,7 +559,7 @@ public class UserProcess {
 
 		// check for free fileDescriptor
 		int emptyIndex = -1;
-		for(int i=2; i<15; i++){
+		for(int i=2; i<16; i++){
 			if(fileDescriptorTable[i] == null){
 				emptyIndex = i;
 				break;
