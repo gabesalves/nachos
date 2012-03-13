@@ -29,8 +29,8 @@ public class UserProcess {
 
 		//Initialize variables use for project 2
 		fileDescriptorTable = new OpenFile[16];
-		fileDescriptorTable[0] = UserKernel.console.openForWriting();
-		fileDescriptorTable[1] = UserKernel.console.openForReading();
+		fileDescriptorTable[0] = UserKernel.console.openForWriting(); //stdin
+		fileDescriptorTable[1] = UserKernel.console.openForReading(); //stdout
 		childProcesses = new LinkedList<UserProcess>();
 		parentProcess = null;
 
@@ -681,7 +681,7 @@ public class UserProcess {
 		}
 		String[] filenameArray = filename.split("\\.");
 		String last = filenameArray[filenameArray.length - 1];
-		if (last.toLowerCase() != "coff"){
+		if (!last.toLowerCase().equals("coff")){
 			Lib.debug(dbgProcess, "File name must end with 'coff'");
 			return -1;
 		}
