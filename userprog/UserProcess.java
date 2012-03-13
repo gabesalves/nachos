@@ -663,7 +663,7 @@ public class UserProcess {
 			Lib.debug(dbgProcess, "Invalid file name");
 			return -1;
 		}
-		String[] filenameArray = filename.split(".");
+		String[] filenameArray = filename.split("\\.");
 		String last = filenameArray[filenameArray.length - 1];
 		if (last.toLowerCase() != ".coff"){
 			Lib.debug(dbgProcess, "File name must end with '.coff'");
