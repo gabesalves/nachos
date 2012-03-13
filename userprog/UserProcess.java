@@ -26,10 +26,12 @@ public class UserProcess {
 	 * Allocate a new process.
 	 */
 	public UserProcess() {
+		/*
 		int numPhysPages = Machine.processor().getNumPhysPages();
 		pageTable = new TranslationEntry[numPhysPages];
 		for (int i=0; i<numPhysPages; i++)
-			pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+		    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+		 */
 
 		//Initialize variables use for project 2
 		fileDescriptorTable = new OpenFile[15];
@@ -143,16 +145,63 @@ public class UserProcess {
 			int length) {
 		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
 
-		byte[] memory = Machine.processor().getMemory();
-
-		// for now, just assume that virtual addresses equal physical addresses
-		if (vaddr < 0 || vaddr >= memory.length)
+		//make sure that virtual address is valid for this process' virtual address space
+		if (vaddr < 0 || vaddr+length > Machine.processor().makeAddress(numPages-1, pageSize-1))
 			return 0;
 
-		int amount = Math.min(length, memory.length-vaddr);
-		System.arraycopy(memory, vaddr, data, offset, amount);
+		//make sure data array is big enough
+		if (length > data.length - offset)
+			return 0;
 
-		return amount;
+		byte[] memory = Machine.processor().getMemory();
+
+		/*
+		 * BAD. Why? Doesn't translate between virtual and physical pages -
+		 * assumes that all physical pages are contiguous.
+		 * 
+		int virtPage = Machine.processor().pageFromAddress(vaddr);
+		int offset1 = vaddr - Machine.processor().makeAddress(virtPage, 0);
+		int firstPhysAddress = Machine.processor().makeAddress(virtPage.ppn, offset);
+		int lastPhysAddress = firstPhysAddress + offset1;
+
+		System.arraycopy(memory, firstPhysAddress, data, offset, length);
+		 */
+
+		int firstVirtPage = Machine.processor().pageFromAddress(vaddr);
+		int lastVirtPage = Machine.processor().pageFromAddress(vaddr+length);
+		int numBytesTransferred = 0;
+		for (int i=firstVirtPage; i<=lastVirtPage; i++){
+			int firstVirtAddress = Machine.processor().makeAddress(i, 0);
+			int lastVirtAddress = Machine.processor().makeAddress(i, pageSize-1);
+			int offset1;
+			int offset2;
+			//virtual page is in the middle, copy entire page (most common case)
+			if (vaddr <= firstVirtAddress && vaddr+length >= lastVirtAddress){
+				offset1 = 0;
+				offset2 = pageSize - 1;
+			}
+			//virtual page is first to be transferred
+			else if (vaddr > firstVirtAddress && vaddr+length >= lastVirtAddress){
+				offset1 = vaddr - firstVirtAddress;
+				offset2 = pageSize - 1;
+			}
+			//virtual page is last to be transferred
+			else if (vaddr <= firstVirtAddress && vaddr+length < lastVirtAddress){
+				offset1 = 0;
+				offset2 = pageSize - (lastVirtAddress - (vaddr + length));
+			}
+			//only need inner chunk of a virtual page (special case)
+			else { //(vaddr > firstVirtAddress && vaddr+length < lastVirtAddress)
+				offset1 = vaddr - firstVirtAddress;
+				offset2 = pageSize - (lastVirtAddress - (vaddr + length));
+			}
+			int firstPhysAddress = Machine.processor().makeAddress(pageTable[i].ppn, offset1);
+			//int lastPhysAddress = Machine.processor().makeAddress(pageTable[i].ppn, offset2);
+			System.arraycopy(memory, firstPhysAddress, data, offset+numBytesTransferred, offset2-offset1);
+			numBytesTransferred += (offset2-offset1);
+		}
+
+		return numBytesTransferred;
 	}
 
 	/**
@@ -188,10 +237,51 @@ public class UserProcess {
 
 		byte[] memory = Machine.processor().getMemory();
 
-		// for now, just assume that virtual addresses equal physical addresses
-		if (vaddr < 0 || vaddr >= memory.length)
+		//make sure that virtual address is valid for this process' virtual address space
+		if (vaddr < 0 || vaddr+length > Machine.processor().makeAddress(numPages-1, pageSize-1))
 			return 0;
 
+		//make sure data array is big enough
+		if (length > data.length - offset)
+			return 0;
+
+		int firstVirtPage = Machine.processor().pageFromAddress(vaddr);
+		int lastVirtPage = Machine.processor().pageFromAddress(vaddr+length);
+		int numBytesTransferred = 0;
+		for (int i=firstVirtPage; i<=lastVirtPage; i++){
+			int firstVirtAddress = Machine.processor().makeAddress(i, 0);
+			int lastVirtAddress = Machine.processor().makeAddress(i, pageSize-1);
+			int offset1;
+			int offset2;
+			//virtual page is in the middle, copy entire page (most common case)
+			if (vaddr <= firstVirtAddress && vaddr+length >= lastVirtAddress){
+				offset1 = 0;
+				offset2 = pageSize - 1;
+			}
+			//virtual page is first to be transferred
+			else if (vaddr > firstVirtAddress && vaddr+length >= lastVirtAddress){
+				offset1 = vaddr - firstVirtAddress;
+				offset2 = pageSize - 1;
+			}
+			//virtual page is last to be transferred
+			else if (vaddr <= firstVirtAddress && vaddr+length < lastVirtAddress){
+				offset1 = 0;
+				offset2 = pageSize - (lastVirtAddress - (vaddr + length));
+			}
+			//only need inner chunk of a virtual page (special case)
+			else { //(vaddr > firstVirtAddress && vaddr+length < lastVirtAddress)
+				offset1 = vaddr - firstVirtAddress;
+				offset2 = pageSize - (lastVirtAddress - (vaddr + length));
+			}
+			int firstPhysAddress = Machine.processor().makeAddress(pageTable[i].ppn, offset1);
+			//int lastPhysAddress = Machine.processor().makeAddress(pageTable[i].ppn, offset2);
+			System.arraycopy(data, offset+numBytesTransferred, memory, firstPhysAddress, offset2-offset1);
+			numBytesTransferred += (offset2-offset1);
+		}
+
+		return numBytesTransferred;
+
+		/*
 		int vpn = Processor.pageFromAddress(vaddr);
 		TranslationEntry translationEntry; 
 
@@ -216,7 +306,7 @@ public class UserProcess {
 
 		amount += writeVirtualMemory(nextVaddr, data, nextOffset, nextLength);
 
-		return amount;
+		return amount;*/
 	}
 
 	/**
@@ -321,6 +411,13 @@ public class UserProcess {
 			return false;
 		}
 
+		//allocate physical pages from free pages list
+		pageTable = new TranslationEntry[numPages];
+		for (int i=0; i<numPages; i++){
+			int nextFreePage = UserKernel.availablePages.poll();
+			pageTable[i] = new TranslationEntry(i,nextFreePage,true,false,false,false);
+		}
+
 		// load sections
 		for (int s=0; s<coff.getNumSections(); s++) {
 			CoffSection section = coff.getSection(s);
@@ -331,8 +428,7 @@ public class UserProcess {
 			for (int i=0; i<section.getLength(); i++) {
 				int vpn = section.getFirstVPN()+i;
 
-				// for now, just assume virtual addresses=physical addresses
-				section.loadPage(i, vpn);
+				section.loadPage(i, pageTable[vpn].ppn);
 			}
 		}
 
@@ -343,6 +439,9 @@ public class UserProcess {
 	 * Release any resources allocated by <tt>loadSections()</tt>.
 	 */
 	protected void unloadSections() {
+		//deallocate physical pages
+		for (int i=0; i<numPages; i++)
+			UserKernel.availablePages.add(pageTable[i].ppn);
 	}    
 
 	/**
