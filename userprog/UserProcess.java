@@ -628,7 +628,7 @@ public class UserProcess {
 		//write from virtual address space to buffer
 		bytesWritten = readVirtualMemory(bufferAddr, buffer, 0, count);
 
-		//ERROR: didn't really all the bytes we wanted to
+		//ERROR: didn't read all the bytes we wanted to
 		if(bytesWritten != count) { return -1; }
 
 		//write from buffer to file
@@ -681,8 +681,8 @@ public class UserProcess {
 		}
 		String[] filenameArray = filename.split("\\.");
 		String last = filenameArray[filenameArray.length - 1];
-		if (last.toLowerCase() != ".coff"){
-			Lib.debug(dbgProcess, "File name must end with '.coff'");
+		if (last.toLowerCase() != "coff"){
+			Lib.debug(dbgProcess, "File name must end with 'coff'");
 			return -1;
 		}
 
