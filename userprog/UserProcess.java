@@ -710,9 +710,47 @@ public class UserProcess {
 	}
 
 	//status is a pointer
-	private int handleJoin(int processID, int status){
-		return -1;
-	}
+    	private int handleJoin(int processID, int statusAddr){
+        	UserProcess child = null;
+        	int children = this.childProcesses.size();
+        	int statusInt;
+        	String statusString;
+
+        	//find process represented by processID
+        	for(int i = 0; i < children; i++) {
+        	    if(this.childProcesses.get(i).processID == processID) {
+                    	child = this.childProcesses.get(i);
+                    	break;
+            	    }
+        	}
+        
+        	//processID doesn't represent a child of this process
+        	if(child == null) {
+        	    return -1;
+        	}
+
+        	//check if child is already done; if it is, return immediately
+        	//else, wait for child to finish
+        	if(child.status == 0) {
+        	    return 1; //child already done
+        	} else {
+        	    lock.acquire();
+        	    waiting.sleep();
+        	    lock.release();
+        	}
+        
+        	//disown child
+        	this.childProcesses.remove(child);
+        	child.parentProcess = null;
+        	
+        	//check child's status, to see what to return
+        	if(child.status >= 0) {
+        	    writeVirtualMemory(statusAddr, new byte[] { (byte) child.status });
+        	    return 1; //child exited normally
+        	} else {
+        	    return 0; //something went horribly wrong
+        	}
+    	}
 
 
 
@@ -843,4 +881,8 @@ public class UserProcess {
 	protected UserProcess parentProcess;
 	private int processIdCounter;
 	private int processID;
+	protected int status = -1;
+    	private int processCount = 0;
+    	protected Condition waiting;
+    	protected Lock lock;
 }
