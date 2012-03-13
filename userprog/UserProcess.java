@@ -26,21 +26,19 @@ public class UserProcess {
 	 * Allocate a new process.
 	 */
 	public UserProcess() {
-		/*
-		int numPhysPages = Machine.processor().getNumPhysPages();
-		pageTable = new TranslationEntry[numPhysPages];
-		for (int i=0; i<numPhysPages; i++)
-		    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
-		 */
 
 		//Initialize variables use for project 2
-		fileDescriptorTable = new OpenFile[15];
+		fileDescriptorTable = new OpenFile[16];
 		fileDescriptorTable[0] = UserKernel.console.openForWriting();
 		fileDescriptorTable[1] = UserKernel.console.openForReading();
 		childProcesses = new LinkedList<UserProcess>();
 		parentProcess = null;
-		processIdCounter = 0;
-		processID = 0;
+
+		boolean intStatus = Machine.interrupt().disable();
+		processID = processIdCounter;
+		processIdCounter++;
+		Machine.interrupt().restore(intStatus);
+
 	}
 
 	/**
@@ -202,7 +200,7 @@ public class UserProcess {
 			System.arraycopy(memory, firstPhysAddress, data, offset+numBytesTransferred, offset2-offset1);
 			numBytesTransferred += (offset2-offset1);
 		}
-		
+
 		String test = new String(data, offset, length);
 		System.out.println();
 		System.out.println("Read '" + test + "'");
@@ -240,7 +238,7 @@ public class UserProcess {
 	public int writeVirtualMemory(int vaddr, byte[] data, int offset,
 			int length) {
 		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
-		
+
 		String test = new String(data, offset, length);
 		System.out.println("Write '" + test + "'");
 
@@ -399,7 +397,7 @@ public class UserProcess {
 			Lib.assertTrue(writeVirtualMemory(entryOffset,stringOffsetBytes) == 4);
 			entryOffset += 4;
 			Lib.assertTrue(writeVirtualMemory(stringOffset, argv[i]) ==
-					argv[i].length);
+				argv[i].length);
 			stringOffset += argv[i].length;
 			Lib.assertTrue(writeVirtualMemory(stringOffset,new byte[] { 0 }) == 1);
 			stringOffset += 1;
@@ -717,47 +715,47 @@ public class UserProcess {
 	}
 
 	//status is a pointer
-    	private int handleJoin(int processID, int statusAddr){
-        	UserProcess child = null;
-        	int children = this.childProcesses.size();
-        	int statusInt;
-        	String statusString;
+	private int handleJoin(int processID, int statusAddr){
+		UserProcess child = null;
+		int children = this.childProcesses.size();
+		int statusInt;
+		String statusString;
 
-        	//find process represented by processID
-        	for(int i = 0; i < children; i++) {
-        	    if(this.childProcesses.get(i).processID == processID) {
-                    	child = this.childProcesses.get(i);
-                    	break;
-            	    }
-        	}
-        
-        	//processID doesn't represent a child of this process
-        	if(child == null) {
-        	    return -1;
-        	}
+		//find process represented by processID
+		for(int i = 0; i < children; i++) {
+			if(this.childProcesses.get(i).processID == processID) {
+				child = this.childProcesses.get(i);
+				break;
+			}
+		}
 
-        	//check if child is already done; if it is, return immediately
-        	//else, wait for child to finish
-        	if(child.status == 0) {
-        	    return 1; //child already done
-        	} else {
-        	    lock.acquire();
-        	    waiting.sleep();
-        	    lock.release();
-        	}
-        
-        	//disown child
-        	this.childProcesses.remove(child);
-        	child.parentProcess = null;
-        	
-        	//check child's status, to see what to return
-        	if(child.status >= 0) {
-        	    writeVirtualMemory(statusAddr, new byte[] { (byte) child.status });
-        	    return 1; //child exited normally
-        	} else {
-        	    return 0; //something went horribly wrong
-        	}
-    	}
+		//processID doesn't represent a child of this process
+		if(child == null) {
+			return -1;
+		}
+
+		//check if child is already done; if it is, return immediately
+		//else, wait for child to finish
+		if(child.status == 0) {
+			return 1; //child already done
+		} else {
+			lock.acquire();
+			waiting.sleep();
+			lock.release();
+		}
+
+		//disown child
+		this.childProcesses.remove(child);
+		child.parentProcess = null;
+
+		//check child's status, to see what to return
+		if(child.status >= 0) {
+			writeVirtualMemory(statusAddr, new byte[] { (byte) child.status });
+			return 1; //child exited normally
+		} else {
+			return 0; //something went horribly wrong
+		}
+	}
 
 
 
@@ -853,7 +851,7 @@ public class UserProcess {
 					processor.readRegister(Processor.regA1),
 					processor.readRegister(Processor.regA2),
 					processor.readRegister(Processor.regA3)
-					);
+			);
 			processor.writeRegister(Processor.regV0, result);
 			processor.advancePC();
 			break;				       
@@ -885,11 +883,10 @@ public class UserProcess {
 	// new variables for project 2
 	private OpenFile[] fileDescriptorTable;
 	private LinkedList<UserProcess> childProcesses;
-	protected UserProcess parentProcess;
-	private int processIdCounter;
+	private UserProcess parentProcess;
+	private int static processIdCounter = 0;
 	private int processID;
 	protected int status = -1;
-    	private int processCount = 0;
-    	protected Condition waiting;
-    	protected Lock lock;
+	protected Condition waiting;
+	protected Lock lock;
 }
