@@ -663,26 +663,25 @@ public class UserProcess {
 
 
     	private int handleExit(int status){
-        	this.status = status;
-        	for(int i = 0; i<16; i++) {
-            		fileDescriptorTable[i].close();
-        	}
-        	ListIterator<UserProcess> iter = childProcesses.listIterator(0);
-        	while(iter.hasNext()){
-            		iter.next().parentProcess = null;
-        	}
-        	if (processCount == 1) {
-            		Kernel.kernel.terminate();
-        	} else {
-            		processCount--;
-		        lock.acquire();
-		        waiting.wake();
-		        lock.release();
-	        }
-	        unloadSections();
-	        KThread.finish();
-	        return 0;
-    }
+    	    this.status = status;
+    	    this.unloadSections();
+    	    
+    	    ListIterator<UserProcess> iter = childProcesses.listIterator(0);
+    	    while(iter.hasNext()) {
+    	        iter.next().parentProcess = null;
+    	    }
+    	    
+    	    if (processIdCounter == 1) {
+    	        Kernel.kernel.terminate();
+    	    } else {
+    	        processIdCounter--;
+    	        lock.acquire();
+    	        waiting.wake();
+    	        lock.release();
+    	    }
+    	    KThread.finish();
+    	    return 0;
+    	}
 
 	private int handleExec(int fileNameVaddr, int numArg, int argOffset){
 		// Check fileNameVaddr
