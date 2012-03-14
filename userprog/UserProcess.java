@@ -661,9 +661,31 @@ public class UserProcess {
 	 */
 
 
-	private int handleExit(int status){
-		return -1;
-	}
+    	private int handleExit(int status){
+    	    KThread.finish();
+    	    this.status = status;
+    	    for(int i = 0; i<17; i++)
+    	    {
+    	        fileDescriptorTable[i].close();
+    	    }
+    	    ListIterator<UserProcess> iter = childProcesses.listIterator(0);
+    	    while(iter.hasNext())
+    	    {
+    	        iter.next().parentProcess = null;
+    	    }
+    	    if (processIdCounter == 1)
+    	    {
+    	        Kernel.kernel.terminate();
+    	    }
+    	    else
+    	    {
+    	        processIdCounter--;
+    	        lock.acquire();
+    	        waiting.wake();
+    	        lock.release();
+    	    }
+    	    return 0;
+    	}
 
 	private int handleExec(int fileNameVaddr, int numArg, int argOffset){
 		// Check fileNameVaddr
