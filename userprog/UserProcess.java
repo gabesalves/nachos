@@ -5,8 +5,6 @@ import nachos.threads.*;
 import nachos.userprog.*;
 
 import java.io.EOFException;
-
-import sun.management.FileSystem;
 import java.util.*;
 
 /**
