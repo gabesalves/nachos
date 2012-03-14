@@ -664,7 +664,7 @@ public class UserProcess {
 
     	private int handleExit(int status){
         	this.status = status;
-        	for(int i = 0; i<17; i++) {
+        	for(int i = 0; i<16; i++) {
             		fileDescriptorTable[i].close();
         	}
         	ListIterator<UserProcess> iter = childProcesses.listIterator(0);
