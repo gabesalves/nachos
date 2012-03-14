@@ -143,12 +143,10 @@ public class UserProcess {
 		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
 
 		//make sure that virtual address is valid for this process' virtual address space
-		if (vaddr < 0 || vaddr+length > Machine.processor().makeAddress(numPages-1, pageSize-1))
-			return 0;
-
-		//make sure data array is big enough
-		if (length > data.length - offset)
-			return 0;
+		if (vaddr < 0)
+			vaddr = 0;
+		if (length > Machine.processor().makeAddress(numPages-1, pageSize-1) - vaddr)
+			length = Machine.processor().makeAddress(numPages-1, pageSize-1) - vaddr;
 
 		byte[] memory = Machine.processor().getMemory();
 
@@ -174,13 +172,11 @@ public class UserProcess {
 			else if (vaddr <= firstVirtAddress && vaddr+length < lastVirtAddress){
 				offset1 = 0;
 				offset2 = (vaddr + length) - firstVirtAddress;
-				//offset2 = pageSize - (lastVirtAddress - (vaddr + length));
 			}
 			//only need inner chunk of a virtual page (special case)
 			else { //(vaddr > firstVirtAddress && vaddr+length < lastVirtAddress)
 				offset1 = vaddr - firstVirtAddress;
 				offset2 = (vaddr + length) - firstVirtAddress;
-				//offset2 = pageSize - (lastVirtAddress - (vaddr + length));
 			}
 			int firstPhysAddress = Machine.processor().makeAddress(pageTable[i].ppn, offset1);
 			//int lastPhysAddress = Machine.processor().makeAddress(pageTable[i].ppn, offset2);
@@ -232,12 +228,10 @@ public class UserProcess {
 		byte[] memory = Machine.processor().getMemory();
 
 		//make sure that virtual address is valid for this process' virtual address space
-		if (vaddr < 0 || vaddr+length > Machine.processor().makeAddress(numPages-1, pageSize-1))
-			return 0;
-
-		//make sure data array is big enough
-		if (length > data.length - offset)
-			return 0;
+		if (vaddr < 0)
+			vaddr = 0;
+		if (length > Machine.processor().makeAddress(numPages-1, pageSize-1) - vaddr)
+			length = Machine.processor().makeAddress(numPages-1, pageSize-1) - vaddr;
 
 		int firstVirtPage = Machine.processor().pageFromAddress(vaddr);
 		int lastVirtPage = Machine.processor().pageFromAddress(vaddr+length);
@@ -261,13 +255,11 @@ public class UserProcess {
 			else if (vaddr <= firstVirtAddress && vaddr+length < lastVirtAddress){
 				offset1 = 0;
 				offset2 = (vaddr + length) - firstVirtAddress;
-				//offset2 = pageSize - (lastVirtAddress - (vaddr + length));
 			}
 			//only need inner chunk of a virtual page (special case)
 			else { //(vaddr > firstVirtAddress && vaddr+length < lastVirtAddress)
 				offset1 = vaddr - firstVirtAddress;
 				offset2 = (vaddr + length) - firstVirtAddress;
-				//offset2 = pageSize - (lastVirtAddress - (vaddr + length));
 			}
 			int firstPhysAddress = Machine.processor().makeAddress(pageTable[i].ppn, offset1);
 			//int lastPhysAddress = Machine.processor().makeAddress(pageTable[i].ppn, offset2);
@@ -594,13 +586,7 @@ public class UserProcess {
 		//write from buffer to file
 		returnAmount = file.write(buffer, 0, count);
 
-		//if returnAmount isn't what it should be, ERROR
-		//else, "write" worked and we return the amount of bytes written
-		if(returnAmount == -1 || returnAmount != count) {
-			return -1;
-		} else {
-			return returnAmount;
-		}
+		return returnAmount;
 	}
 
 	private int handleClose(int fileDescriptor){
