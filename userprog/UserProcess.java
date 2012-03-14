@@ -651,7 +651,7 @@ public class UserProcess {
 		return 0;
 	}
 
-	private int handleUnlink(int name){
+	private int handleUnlink(String name){
 		ThreadedKernel.fileSystem.remove(name);
 		return 0;
 	}
