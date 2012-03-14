@@ -662,12 +662,8 @@ public class UserProcess {
 
 
     	private int handleExit(int status){
-    	    KThread.finish();
     	    this.status = status;
-    	    for(int i = 0; i<16; i++)
-    	    {
-    	        fileDescriptorTable[i].close();
-    	    }
+    	    this.unloadSections();
     	    ListIterator<UserProcess> iter = childProcesses.listIterator(0);
     	    while(iter.hasNext())
     	    {
@@ -684,6 +680,7 @@ public class UserProcess {
     	        waiting.wake();
     	        lock.release();
     	    }
+    	    KThread.finish();
     	    return 0;
     	}
 
