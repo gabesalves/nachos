@@ -62,7 +62,8 @@ public class UserProcess {
 		if (!load(name, args))
 			return false;
 
-		new UThread(this).setName(name).fork();
+		thread = new UThread(this);
+		thread.setName(name).fork();
 
 		return true;
 	}
@@ -150,18 +151,6 @@ public class UserProcess {
 			return 0;
 
 		byte[] memory = Machine.processor().getMemory();
-
-		/*
-		 * BAD. Why? Doesn't translate between virtual and physical pages -
-		 * assumes that all physical pages are contiguous.
-		 * 
-		int virtPage = Machine.processor().pageFromAddress(vaddr);
-		int offset1 = vaddr - Machine.processor().makeAddress(virtPage, 0);
-		int firstPhysAddress = Machine.processor().makeAddress(virtPage.ppn, offset);
-		int lastPhysAddress = firstPhysAddress + offset1;
-
-		System.arraycopy(memory, firstPhysAddress, data, offset, length);
-		 */
 
 		int firstVirtPage = Machine.processor().pageFromAddress(vaddr);
 		int lastVirtPage = Machine.processor().pageFromAddress(vaddr+length);
@@ -287,33 +276,6 @@ public class UserProcess {
 		}
 
 		return numBytesTransferred;
-
-		/*
-		int vpn = Processor.pageFromAddress(vaddr);
-		TranslationEntry translationEntry; 
-
-		try{ 
-			translationEntry = pageTable[vpn]; 
-		}catch(ArrayIndexOutOfBoundsException e ){
-			Lib.debug(dbgProcess, "vpn exceed page length");
-			return 0; 
-		}
-
-		int offset2 = Processor.offsetFromAddress(vaddr);
-		int paddr = translationEntry.ppn  * pageSize + offset2; 
-
-		if (paddr < 0 || paddr >= memory.length)
-			return 0;
-
-		int amount = Math.min(length, memory.length-paddr); //???
-		System.arraycopy(data, offset2, memory, paddr, amount);
-		int nextVaddr = vaddr + amount;
-		int nextOffset = offset2 + amount;
-		int nextLength = length - amount;
-
-		amount += writeVirtualMemory(nextVaddr, data, nextOffset, nextLength);
-
-		return amount;*/
 	}
 
 	/**
@@ -450,7 +412,7 @@ public class UserProcess {
 		for (int i=0; i<numPages; i++){
 			UserKernel.availablePages.add(pageTable[i].ppn);
 		}
-		
+
 		for (int i=0; i<16; i++){
 			if (fileDescriptorTable[i] != null){
 				try{
@@ -460,7 +422,7 @@ public class UserProcess {
 				}
 			}
 		}
-		
+
 	}    
 
 	/**
@@ -646,8 +608,13 @@ public class UserProcess {
 			return -1;
 		}
 
-		fileDescriptorTable[fileDescriptor].close();
-		fileDescriptorTable[fileDescriptor] = null;
+		try{
+			fileDescriptorTable[fileDescriptor].close();
+			fileDescriptorTable[fileDescriptor] = null;
+		}catch(Exception e){
+			System.out.println("Not an openFile");
+		}
+
 		return 0;
 	}
 
@@ -662,25 +629,26 @@ public class UserProcess {
 	 */
 
 
-    	private int handleExit(int status){
-    	    this.status = status;
-    	    this.unloadSections();
-    	    
-    	    ListIterator<UserProcess> iter = childProcesses.listIterator(0);
-    	    while(iter.hasNext()) {
-    	        iter.next().parentProcess = null;
-    	    }
-    	    KThread.finish();
-    	    if (processIdCounter == 1) {
-    	        Kernel.kernel.terminate();
-    	    } else {
-    	        processIdCounter--;
-    	        lock.acquire();
-    	        waiting.wake();
-    	        lock.release();
-    	    }
-    	    return 0;
-    	}
+	// NOT BULLET-PROOF. PERFECT IT PLEASE!!!
+	private int handleExit(int status){
+		this.status = (Integer) status;
+
+		this.unloadSections();
+		ListIterator<UserProcess> iter = childProcesses.listIterator(0);
+		while(iter.hasNext()) {
+			iter.next().parentProcess = null;
+		}
+		childProcesses.clear();
+
+		if (this.processID == 0) {
+			Kernel.kernel.terminate(); //root exiting 
+		} else {
+			KThread.finish();
+		}
+
+		return status;
+	}
+
 
 	private int handleExec(int fileNameVaddr, int numArg, int argOffset){
 		// Check fileNameVaddr
@@ -737,7 +705,8 @@ public class UserProcess {
 		} 	
 	}
 
-	//status is a pointer
+	// NOT BULLET-PROOF. PERFECT IT PLEASE!!!
+
 	private int handleJoin(int processID, int statusAddr){
 		UserProcess child = null;
 		int children = this.childProcesses.size();
@@ -759,12 +728,10 @@ public class UserProcess {
 
 		//check if child is already done; if it is, return immediately
 		//else, wait for child to finish
-		if(child.status == 0) {
+		if(child.status != null) { // dangerous! Status set by exit doesn't have to be 0
 			return 1; //child already done
 		} else {
-			lock.acquire();
-			waiting.sleep();
-			lock.release();
+			child.thread.join();
 		}
 
 		//disown child
@@ -772,19 +739,19 @@ public class UserProcess {
 		child.parentProcess = null;
 
 		//check child's status, to see what to return
-		if(child.status >= 0) {
-			writeVirtualMemory(statusAddr, new byte[] { (byte) child.status });
-			return 1; //child exited normally
+		if(child.status != null) {
+			byte[] buffer = new byte[4];
+			Lib.bytesFromInt(buffer, 0, child.status);
+			int bytesWritten = writeVirtualMemory(statusAddr, buffer);
+			if (bytesWritten == 4){
+				return 1; //child exited normally
+			}else{
+				return 0;
+			}
 		} else {
 			return 0; //something went horribly wrong
 		}
 	}
-
-
-
-
-
-
 
 	private static final int
 	syscallHalt = 0,
@@ -848,11 +815,11 @@ public class UserProcess {
 			return handleClose(a0);
 		case syscallUnlink:
 			String name = readVirtualMemoryString(a0, 256);
-            		if (name == null)
-		        {
-		        	return -1;
-		        }
-		        return handleUnlink(name);
+			if (name == null)
+			{
+				return -1;
+			}
+			return handleUnlink(name);
 
 		default:
 			Lib.debug(dbgProcess, "Unknown syscall " + syscall);
@@ -914,7 +881,6 @@ public class UserProcess {
 	private UserProcess parentProcess;
 	private static int processIdCounter = 0;
 	private int processID;
-	protected int status = -1;
-	protected Condition waiting;
-	protected Lock lock;
+	protected Integer status = null;
+	private UThread thread;
 }
