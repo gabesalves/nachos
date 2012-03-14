@@ -670,7 +670,7 @@ public class UserProcess {
     	    while(iter.hasNext()) {
     	        iter.next().parentProcess = null;
     	    }
-    	    
+    	    KThread.finish();
     	    if (processIdCounter == 1) {
     	        Kernel.kernel.terminate();
     	    } else {
@@ -679,7 +679,6 @@ public class UserProcess {
     	        waiting.wake();
     	        lock.release();
     	    }
-    	    KThread.finish();
     	    return 0;
     	}
 
