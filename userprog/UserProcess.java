@@ -652,7 +652,8 @@ public class UserProcess {
 	}
 
 	private int handleUnlink(int name){
-		return -1;
+		ThreadedKernel.fileSystem.remove(name);
+		return 0;
 	}
 
 
@@ -662,27 +663,26 @@ public class UserProcess {
 
 
     	private int handleExit(int status){
-    	    this.status = status;
-    	    this.unloadSections();
-    	    ListIterator<UserProcess> iter = childProcesses.listIterator(0);
-    	    while(iter.hasNext())
-    	    {
-    	        iter.next().parentProcess = null;
-    	    }
-    	    if (processIdCounter == 1)
-    	    {
-    	        Kernel.kernel.terminate();
-    	    }
-    	    else
-    	    {
-    	        processIdCounter--;
-    	        lock.acquire();
-    	        waiting.wake();
-    	        lock.release();
-    	    }
-    	    KThread.finish();
-    	    return 0;
-    	}
+        	this.status = status;
+        	for(int i = 0; i<17; i++) {
+            		fileDescriptorTable[i].close();
+        	}
+        	ListIterator<UserProcess> iter = childProcesses.listIterator(0);
+        	while(iter.hasNext()){
+            		iter.next().parentProcess = null;
+        	}
+        	if (processCount == 1) {
+            		Kernel.kernel.terminate();
+        	} else {
+            		processCount--;
+		        lock.acquire();
+		        waiting.wake();
+		        lock.release();
+	        }
+	        unloadSections();
+	        KThread.finish();
+	        return 0;
+    }
 
 	private int handleExec(int fileNameVaddr, int numArg, int argOffset){
 		// Check fileNameVaddr
@@ -849,7 +849,12 @@ public class UserProcess {
 		case syscallClose:
 			return handleClose(a0);
 		case syscallUnlink:
-			return handleUnlink(a0);
+			String name = readVirtualMemoryString(a0, 256);
+            		if (name == null)
+		        {
+		        	return -1;
+		        }
+		        return handleUnlink(name);
 
 		default:
 			Lib.debug(dbgProcess, "Unknown syscall " + syscall);
