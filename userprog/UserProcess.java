@@ -35,6 +35,7 @@ public class UserProcess {
 		boolean intStatus = Machine.interrupt().disable();
 		processID = processIdCounter;
 		processIdCounter++;
+		exitStatuses = new HashMap<Integer,Integer>();
 		Machine.interrupt().restore(intStatus);
 
 	}
@@ -609,7 +610,11 @@ public class UserProcess {
 	}
 
 	private int handleUnlink(String name){
-		ThreadedKernel.fileSystem.remove(name);
+		boolean succeeded = ThreadedKernel.fileSystem.remove(name);
+		if (!succeeded)
+		{
+			return -1;
+		}
 		return 0;
 	}
 
@@ -621,21 +626,18 @@ public class UserProcess {
 
 	// NOT BULLET-PROOF. PERFECT IT PLEASE!!!
 	private int handleExit(int status){
-		this.status = (Integer) status;
-
+		parentProcess.exitStatuses.put(processID, status);
 		this.unloadSections();
-		ListIterator<UserProcess> iter = childProcesses.listIterator(0);
+		ListIterator<UserProcess> iter = childProcesses.listIterator();
 		while(iter.hasNext()) {
 			iter.next().parentProcess = null;
 		}
 		childProcesses.clear();
-
 		if (this.processID == 0) {
-			Kernel.kernel.terminate(); //root exiting 
+			Kernel.kernel.terminate(); //root exiting
 		} else {
 			KThread.finish();
 		}
-
 		return status;
 	}
 
@@ -697,7 +699,7 @@ public class UserProcess {
 
 	// NOT BULLET-PROOF. PERFECT IT PLEASE!!!
 
-	private int handleJoin(int processID, int statusAddr){
+private int handleJoin(int processID, int statusAddr){
 		UserProcess child = null;
 		int children = this.childProcesses.size();
 		int statusInt;
@@ -731,7 +733,7 @@ public class UserProcess {
 		//check child's status, to see what to return
 		if(child.status != null) {
 			byte[] buffer = new byte[4];
-			Lib.bytesFromInt(buffer, 0, child.status);
+			Lib.bytesFromInt(buffer, 0, exitStatuses.get(child.processID));
 			int bytesWritten = writeVirtualMemory(statusAddr, buffer);
 			if (bytesWritten == 4){
 				return 1; //child exited normally
@@ -873,4 +875,5 @@ public class UserProcess {
 	private int processID;
 	protected Integer status = null;
 	private UThread thread;
+	private HashMap<Integer,Integer> exitStatuses;
 }
