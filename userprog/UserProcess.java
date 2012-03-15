@@ -162,6 +162,8 @@ public class UserProcess {
 		int lastVirtPage = Machine.processor().pageFromAddress(vaddr+length);
 		int numBytesTransferred = 0;
 		for (int i=firstVirtPage; i<=lastVirtPage; i++){
+			if (!pageTable[i].valid)
+				continue; //skip this page
 			int firstVirtAddress = Machine.processor().makeAddress(i, 0);
 			int lastVirtAddress = Machine.processor().makeAddress(i, pageSize-1);
 			int offset1;
@@ -190,6 +192,7 @@ public class UserProcess {
 			//int lastPhysAddress = Machine.processor().makeAddress(pageTable[i].ppn, offset2);
 			System.arraycopy(memory, firstPhysAddress, data, offset+numBytesTransferred, offset2-offset1);
 			numBytesTransferred += (offset2-offset1);
+			pageTable[i].used = true;
 		}		
 		return numBytesTransferred;
 	}
@@ -237,6 +240,8 @@ public class UserProcess {
 		int lastVirtPage = Machine.processor().pageFromAddress(vaddr+length);
 		int numBytesTransferred = 0;
 		for (int i=firstVirtPage; i<=lastVirtPage; i++){
+			if (!pageTable[i].valid || pageTable[i].readOnly)
+				continue; //skip this page
 			int firstVirtAddress = Machine.processor().makeAddress(i, 0);
 			int lastVirtAddress = Machine.processor().makeAddress(i, pageSize-1);
 			int offset1;
@@ -265,6 +270,7 @@ public class UserProcess {
 			//int lastPhysAddress = Machine.processor().makeAddress(pageTable[i].ppn, offset2);
 			System.arraycopy(data, offset+numBytesTransferred, memory, firstPhysAddress, offset2-offset1);
 			numBytesTransferred += (offset2-offset1);
+			pageTable[i].used = pageTable[i].dirty = true;
 		}
 
 		return numBytesTransferred;
