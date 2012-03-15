@@ -31,8 +31,8 @@ public class UserProcess {
 		processID = processIdCounter;
 		processIdCounter++;
 		if (parentProcess == null){
-			stdin = UserKernel.console.openForWriting();
-			stdout = UserKernel.console.openForReading();
+			stdin = UserKernel.console.openForReading();
+			stdout = UserKernel.console.openForWriting();
 		}else{
 			stdin = parentProcess.stdin;
 			stdout = parentProcess.stdout;
@@ -191,12 +191,7 @@ public class UserProcess {
 			//int lastPhysAddress = Machine.processor().makeAddress(pageTable[i].ppn, offset2);
 			System.arraycopy(memory, firstPhysAddress, data, offset+numBytesTransferred, offset2-offset1);
 			numBytesTransferred += (offset2-offset1);
-		}
-
-		String test = new String(data, offset, length);
-		System.out.println();
-		System.out.println("Read '" + test + "'");
-
+		}		
 		return numBytesTransferred;
 	}
 
@@ -230,9 +225,6 @@ public class UserProcess {
 	public int writeVirtualMemory(int vaddr, byte[] data, int offset,
 			int length) {
 		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
-
-		String test = new String(data, offset, length);
-		System.out.println("Write '" + test + "'");
 
 		byte[] memory = Machine.processor().getMemory();
 
