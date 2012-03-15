@@ -720,7 +720,7 @@ private int handleJoin(int processID, int statusAddr){
 
 		//check if child is already done; if it is, return immediately
 		//else, wait for child to finish
-		if(child.status != null) { // dangerous! Status set by exit doesn't have to be 0
+		if(exitStatuses.get(child.processID) != null) { // dangerous! Status set by exit doesn't have to be 0
 			return 1; //child already done
 		} else {
 			child.thread.join();
@@ -731,7 +731,7 @@ private int handleJoin(int processID, int statusAddr){
 		child.parentProcess = null;
 
 		//check child's status, to see what to return
-		if(child.status != null) {
+		if(exitStatuses.get(child.processID) != null) {
 			byte[] buffer = new byte[4];
 			Lib.bytesFromInt(buffer, 0, exitStatuses.get(child.processID));
 			int bytesWritten = writeVirtualMemory(statusAddr, buffer);
@@ -873,7 +873,6 @@ private int handleJoin(int processID, int statusAddr){
 	private UserProcess parentProcess;
 	private static int processIdCounter = 0;
 	private int processID;
-	protected Integer status = null;
 	private UThread thread;
 	private HashMap<Integer,Integer> exitStatuses;
 }
