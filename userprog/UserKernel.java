@@ -34,6 +34,8 @@ public class UserKernel extends ThreadedKernel {
 		int numPhysPages = Machine.processor().getNumPhysPages();
 		for(Integer i=0; i<numPhysPages; i++)
 			availablePages.add(i);
+		
+		lock = new Lock();
 	}
 
 	/**
@@ -120,6 +122,9 @@ public class UserKernel extends ThreadedKernel {
 	
 	/** Globally accessible list of free physical pages in memory. */
 	public static LinkedList<Integer> availablePages;
+	
+	/** Lock for accessing the availablePages list */
+	public static Lock lock;
 
 	// dummy variables to make javac smarter
 	private static Coff dummy1 = null;

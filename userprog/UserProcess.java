@@ -372,12 +372,14 @@ public class UserProcess {
 			return false;
 		}
 
+		UserKernel.lock.acquire();
 		//allocate physical pages from free pages list
 		pageTable = new TranslationEntry[numPages];
 		for (int i=0; i<numPages; i++){
 			int nextFreePage = UserKernel.availablePages.poll();
 			pageTable[i] = new TranslationEntry(i,nextFreePage,true,false,false,false);
 		}
+		UserKernel.lock.release();
 
 		// load sections
 		for (int s=0; s<coff.getNumSections(); s++) {
@@ -400,10 +402,12 @@ public class UserProcess {
 	 * Release any resources allocated by <tt>loadSections()</tt>.
 	 */
 	protected void unloadSections() {
+		UserKernel.lock.acquire();
 		//deallocate physical pages
 		for (int i=0; i<numPages; i++){
 			UserKernel.availablePages.add(pageTable[i].ppn);
 		}
+		UserKernel.lock.release();
 
 		for (int i=0; i<16; i++){
 			if (fileDescriptorTable[i] != null){
