@@ -416,8 +416,8 @@ public class UserProcess {
 					System.out.println("who put weird stuffs into my file descriptor table?");
 				}
 			}
-		}
-
+		}	
+		coff.close();
 	}    
 
 	/**
