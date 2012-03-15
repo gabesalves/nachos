@@ -44,8 +44,6 @@ public class UserProcess {
 		childProcesses = new LinkedList<UserProcess>();
 		parentProcess = null;		
 		exitStatuses = new HashMap<Integer,Integer>();
-
-
 	}
 
 	/**
@@ -550,6 +548,9 @@ public class UserProcess {
 		//ERROR: there's no file at fileDescriptor
 		if(file == null) { return -1; }
 
+		// Make sure count is positive. What if count is 0???
+		if(count < 0) { return -1; }
+		
 		//the buffer we're going to write to
 		byte[] buffer = new byte[count];
 
@@ -579,6 +580,9 @@ public class UserProcess {
 		//ERROR: there's no file at fileDescriptor
 		if(file == null) { return -1; }
 
+		// check if count is positive. What if count is 0?
+		if(count < 0) { return -1; }
+		
 		//the buffer we're going to read from
 		byte[] buffer = new byte[count];
 
@@ -586,6 +590,8 @@ public class UserProcess {
 		bytesWritten = readVirtualMemory(bufferAddr, buffer, 0, count);
 
 		//ERROR: didn't read all the bytes we wanted to
+		// Do you still want to write to disk though?
+		// Specs: " On error, -1 is returned, and the new file position is undefined "		
 		if(bytesWritten != count) { return -1; }
 
 		//write from buffer to file
@@ -598,14 +604,8 @@ public class UserProcess {
 		if ((fileDescriptor < 0) || (fileDescriptor > 15) || fileDescriptorTable[fileDescriptor] == null ) {
 			return -1;
 		}
-
-		try{
-			fileDescriptorTable[fileDescriptor].close();
-			fileDescriptorTable[fileDescriptor] = null;
-		}catch(Exception e){
-			System.out.println("Not an openFile");
-		}
-
+		fileDescriptorTable[fileDescriptor].close();
+		fileDescriptorTable[fileDescriptor] = null;
 		return 0;
 	}
 
@@ -626,7 +626,9 @@ public class UserProcess {
 
 	// NOT BULLET-PROOF. PERFECT IT PLEASE!!!
 	private int handleExit(int status){
-		parentProcess.exitStatuses.put(processID, status);
+		if (parentProcess != null){
+			parentProcess.exitStatuses.put(processID, status);
+		}
 		this.unloadSections();
 		ListIterator<UserProcess> iter = childProcesses.listIterator();
 		while(iter.hasNext()) {
@@ -716,21 +718,17 @@ public class UserProcess {
 			return -1;
 		}
 
-		//check if child is already done; if it is, return immediately
-		//else, wait for child to finish
-		if(exitStatuses.get(child.processID) != null) { // dangerous! Status set by exit doesn't have to be 0
-			byte[] buffer = new byte[4];
-			Lib.bytesFromInt(buffer, 0, exitStatuses.get(child.processID));
-			writeVirtualMemory(statusAddr, buffer);
-			return 1; //child already done
-		} else {
-			child.thread.join();
-		}
-
+		// if child thread status = finished, join will return immediately
+		child.thread.join();
+		
 		//disown child
 		this.childProcesses.remove(child);
 		child.parentProcess = null;
 
+		if(exitStatuses.get(child.processID) == -9999){
+			return 0; // unhandle exception
+		}
+		
 		//check child's status, to see what to return
 		if(exitStatuses.get(child.processID) != null) {
 			byte[] buffer = new byte[4];
@@ -807,6 +805,9 @@ public class UserProcess {
 		case syscallClose:
 			return handleClose(a0);
 		case syscallUnlink:
+			if (a0 < 0){
+				return -1;
+			}
 			String name = readVirtualMemoryString(a0, 256);
 			if (name == null)
 			{
@@ -847,7 +848,10 @@ public class UserProcess {
 		default:
 			Lib.debug(dbgProcess, "Unexpected exception: " +
 					Processor.exceptionNames[cause]);
-			Lib.assertNotReached("Unexpected exception");
+			if (parentProcess != null && (parentProcess.exitStatuses.get(this.processID) == null)){
+				parentProcess.exitStatuses.put(this.processID, -9999);
+			}
+			//Lib.assertNotReached("Unexpected exception"); <== someone said this kills the entire machine!!!
 		}
 	}
 
@@ -875,6 +879,7 @@ public class UserProcess {
 	private static int processIdCounter = 0;
 	private int processID;
 	private UThread thread;
+	//key = processID, value = status or -9999 if unhandled exception occured
 	private HashMap<Integer,Integer> exitStatuses;
 	protected OpenFile stdin;
 	protected OpenFile stdout;
