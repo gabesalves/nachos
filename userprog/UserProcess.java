@@ -27,16 +27,24 @@ public class UserProcess {
 
 		//Initialize variables use for project 2
 		fileDescriptorTable = new OpenFile[16];
-		fileDescriptorTable[0] = UserKernel.console.openForWriting(); //stdin
-		fileDescriptorTable[1] = UserKernel.console.openForReading(); //stdout
-		childProcesses = new LinkedList<UserProcess>();
-		parentProcess = null;
-
 		boolean intStatus = Machine.interrupt().disable();
 		processID = processIdCounter;
 		processIdCounter++;
+		if (parentProcess == null){
+			stdin = UserKernel.console.openForWriting();
+			stdout = UserKernel.console.openForReading();
+		}else{
+			stdin = parentProcess.stdin;
+			stdout = parentProcess.stdout;
+		}	
+		Machine.interrupt().restore(intStatus);	
+		
+		fileDescriptorTable[0] = stdin; //stdin
+		fileDescriptorTable[1] = stdout; //stdout
+		childProcesses = new LinkedList<UserProcess>();
+		parentProcess = null;		
 		exitStatuses = new HashMap<Integer,Integer>();
-		Machine.interrupt().restore(intStatus);
+
 
 	}
 
@@ -875,4 +883,6 @@ private int handleJoin(int processID, int statusAddr){
 	private int processID;
 	private UThread thread;
 	private HashMap<Integer,Integer> exitStatuses;
+	protected OpenFile stdin;
+	protected OpenFile stdout;
 }
