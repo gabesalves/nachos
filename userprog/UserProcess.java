@@ -626,7 +626,10 @@ public class UserProcess {
 
 	// NOT BULLET-PROOF. PERFECT IT PLEASE!!!
 	private int handleExit(int status){
-		parentProcess.exitStatuses.put(processID, status);
+		if (parentProcess != null)
+		{
+			parentProcess.exitStatuses.put(processID, status);
+		}
 		this.unloadSections();
 		ListIterator<UserProcess> iter = childProcesses.listIterator();
 		while(iter.hasNext()) {
