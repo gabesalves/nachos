@@ -707,11 +707,9 @@ public class UserProcess {
 
 	// NOT BULLET-PROOF. PERFECT IT PLEASE!!!
 
-private int handleJoin(int processID, int statusAddr){
+	private int handleJoin(int processID, int statusAddr){
 		UserProcess child = null;
 		int children = this.childProcesses.size();
-		int statusInt;
-		String statusString;
 
 		//find process represented by processID
 		for(int i = 0; i < children; i++) {
