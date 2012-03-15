@@ -38,12 +38,13 @@ public class UserProcess {
 			stdout = parentProcess.stdout;
 		}	
 		Machine.interrupt().restore(intStatus);	
-		
+
 		fileDescriptorTable[0] = stdin; //stdin
 		fileDescriptorTable[1] = stdout; //stdout
 		childProcesses = new LinkedList<UserProcess>();
 		parentProcess = null;		
 		exitStatuses = new HashMap<Integer,Integer>();
+		mapLock = new Lock();
 	}
 
 	/**
@@ -410,11 +411,7 @@ public class UserProcess {
 
 		for (int i=0; i<16; i++){
 			if (fileDescriptorTable[i] != null){
-				try{
-					fileDescriptorTable[i].close();
-				}catch(Exception e){
-					System.out.println("who put weird stuffs into my file descriptor table?");
-				}
+				fileDescriptorTable[i].close();
 			}
 		}	
 		coff.close();
@@ -550,7 +547,7 @@ public class UserProcess {
 
 		// Make sure count is positive. What if count is 0???
 		if(count < 0) { return -1; }
-		
+
 		//the buffer we're going to write to
 		byte[] buffer = new byte[count];
 
@@ -582,7 +579,7 @@ public class UserProcess {
 
 		// check if count is positive. What if count is 0?
 		if(count < 0) { return -1; }
-		
+
 		//the buffer we're going to read from
 		byte[] buffer = new byte[count];
 
@@ -592,11 +589,15 @@ public class UserProcess {
 		//ERROR: didn't read all the bytes we wanted to
 		// Do you still want to write to disk though?
 		// Specs: " On error, -1 is returned, and the new file position is undefined "		
-		if(bytesWritten != count) { return -1; }
+		//if(bytesWritten != count) { return -1; }
 
 		//write from buffer to file
-		returnAmount = file.write(buffer, 0, count);
+		returnAmount = file.write(buffer, 0, bytesWritten); //even bytesWritten != count, we still write
 
+		if (returnAmount != count){
+			return -1;
+		}
+		
 		return returnAmount;
 	}
 
@@ -629,7 +630,9 @@ public class UserProcess {
 
 		if (parentProcess != null)
 		{
+			parentProcess.mapLock.acquire();
 			parentProcess.exitStatuses.put(processID, status);
+			parentProcess.mapLock.release();
 		}
 		this.unloadSections();
 		ListIterator<UserProcess> iter = childProcesses.listIterator();
@@ -722,7 +725,7 @@ public class UserProcess {
 
 		// if child thread status = finished, join will return immediately
 		child.thread.join();
-		
+
 		//disown child
 		this.childProcesses.remove(child);
 		child.parentProcess = null;
@@ -730,7 +733,7 @@ public class UserProcess {
 		if(exitStatuses.get(child.processID) == -9999){
 			return 0; // unhandle exception
 		}
-		
+
 		//check child's status, to see what to return
 		if(exitStatuses.get(child.processID) != null) {
 			byte[] buffer = new byte[4];
@@ -885,4 +888,5 @@ public class UserProcess {
 	private HashMap<Integer,Integer> exitStatuses;
 	protected OpenFile stdin;
 	protected OpenFile stdout;
+	private Lock mapLock;
 }
