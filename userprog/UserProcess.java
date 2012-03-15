@@ -727,6 +727,9 @@ public class UserProcess {
 		//check if child is already done; if it is, return immediately
 		//else, wait for child to finish
 		if(exitStatuses.get(child.processID) != null) { // dangerous! Status set by exit doesn't have to be 0
+			byte[] buffer = new byte[4];
+			Lib.bytesFromInt(buffer, 0, exitStatuses.get(child.processID));
+			writeVirtualMemory(statusAddr, buffer);
 			return 1; //child already done
 		} else {
 			child.thread.join();
