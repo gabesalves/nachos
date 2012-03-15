@@ -626,7 +626,9 @@ public class UserProcess {
 
 	// NOT BULLET-PROOF. PERFECT IT PLEASE!!!
 	private int handleExit(int status){
-		if (parentProcess != null){
+
+		if (parentProcess != null)
+		{
 			parentProcess.exitStatuses.put(processID, status);
 		}
 		this.unloadSections();
