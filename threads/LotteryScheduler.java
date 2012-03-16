@@ -213,13 +213,13 @@ public class LotteryScheduler extends Scheduler {
 
 		public void addToQueue(ThreadState threadState) {
 			this.priorityQueue.add(threadState);
-			this.priorityQueue = new PriorityQueue<ThreadState>(priorityQueue);
+			//this.priorityQueue = new PriorityQueue<ThreadState>(priorityQueue);
 
 		}
 
 		public void removeFromQueue(ThreadState threadState) {
 			this.priorityQueue.remove(threadState);
-			this.priorityQueue = new PriorityQueue<ThreadState>(priorityQueue);
+			//this.priorityQueue = new PriorityQueue<ThreadState>(priorityQueue);
 		}
 
 		public void acquire(KThread thread) {
@@ -231,36 +231,32 @@ public class LotteryScheduler extends Scheduler {
 		 * @return HighestPriority KThread
 		 */
 		public KThread nextThread(){
-			Iterator<ThreadState> queue1 = priorityQueue.iterator();
-			for (int i = 0; queue1.hasNext(); i++){
-				ThreadState current = queue1.next();
-				//System.out.println(current.getEffectivePriority());
-			}
-			//System.out.println("somewhere in here right?");
+			//Create a counter for total number of tickets
 			int totTickets = 0;
+			//create a LinkedList of threads and another of the tickets associated with that thread
 			LinkedList<ThreadState> threads = new LinkedList<ThreadState>();
 			LinkedList<Integer> tickets = new LinkedList<Integer>();
+			//Iterate through the threadStates waiting to acquire the resource
+			//store their thread and effective priority
 			Iterator<ThreadState> queue = priorityQueue.iterator();
 			for (int i = 0; queue.hasNext(); i++){
 				ThreadState current = queue.next();
 				int ticketNum = (Integer)current.getEffectivePriority();
-				if (ticketNum > 0) {
-					totTickets += ticketNum;
-					threads.add(current);
-					tickets.add(ticketNum);
-				}
+				totTickets += ticketNum;
+				threads.add(current);
+				tickets.add(ticketNum);
 			}
-			//Integer ticketChoice = generator.nextInt(totTickets);
+			//set return thread to null for now
 			ThreadState pickedThread = null;
 			boolean notFound = true;
-			Integer ticketsSoFar = 0;
+			int ticketsSoFar = 0;
+			//if some threads exist go through all of the threads and if the random
+			//ticket falls in the range of the thread give pickedThread to that thread
 			if (totTickets > 0){
-				//System.out.println(totTickets);
 				Integer ticketChoice = generator.nextInt(totTickets);
-				//System.out.println(ticketChoice);
-				for(int j = 0; notFound; j++){
+				for(int j = 0; notFound && j < tickets.size(); j++){
 					ticketsSoFar += tickets.get(j);
-					if (ticketChoice - ticketsSoFar <= -1){
+					if ((ticketChoice - ticketsSoFar) <= -1){
 						pickedThread = threads.get(j);
 						notFound = false;
 					}
@@ -279,7 +275,8 @@ public class LotteryScheduler extends Scheduler {
 				this.dequeuedThread.calcEffectivePriority();
 				return this.dequeuedThread.thread;
 			}
-			return null;
+			else
+				return null;
 		}
 
 		/**
@@ -377,26 +374,25 @@ public class LotteryScheduler extends Scheduler {
 		public void calcEffectivePriority() {
 			int initialEffective = this.getEffectivePriority();
 			int initialPriority = this.getPriority();
-			int totEP = 0;
-			//System.out.println("are we looping here");
-			if (onQueues.size() != 0){
-				int size = onQueues.size();
+			int outsideEP = 0;
+			if (this.onQueues.size() != 0){
+				int size = this.onQueues.size();
 				for(int i = 0; i < size; i++){
 					PriorityThreadQueue current = onQueues.get(i);
 					Iterator<ThreadState> threadIT = current.priorityQueue.iterator();
 					while(threadIT.hasNext()){
 						ThreadState currentThread = threadIT.next();
-						if (currentThread.getEffectivePriority()>0)
-							totEP += currentThread.getEffectivePriority();
-						//System.out.println(currentThread.getEffectivePriority());
+						outsideEP += currentThread.getEffectivePriority();
 					}
 
 				}
 			}
-			this.effectivePriority = totEP + initialPriority;
+			int totEP = initialPriority + outsideEP;
+			this.effectivePriority = totEP;
 			//now that my own effectivePriority Changes I have to recalculate the threads which i am waiting on
 			if (this.waiting != null && this.waiting.dequeuedThread != null){
-				this.waiting.dequeuedThread.addToAllEffective(this.effectivePriority - initialEffective);
+				//System.out.println(totEP - initialEffective);
+				this.waiting.dequeuedThread.addToAllEffective(totEP - initialEffective);
 			}
 		}
 
@@ -459,7 +455,9 @@ public class LotteryScheduler extends Scheduler {
 			long time = Machine.timer().getTime();
 			this.age = time;
 			waitQueue.addToQueue(this);
-			this.waiting = waitQueue;
+			if (waitQueue.transferPriority){
+				this.waiting = waitQueue;
+			}
 			this.calcEffectivePriority();
 			if (waitQueue.dequeuedThread != null) {
 				waitQueue.dequeuedThread.calcEffectivePriority();
@@ -480,7 +478,9 @@ public class LotteryScheduler extends Scheduler {
 			Lib.assertTrue(Machine.interrupt().disabled());
 			Lib.assertTrue(waitQueue.priorityQueue.isEmpty());
 			waitQueue.dequeuedThread = this;
-			this.addQueue(waitQueue);
+			if (waitQueue.transferPriority) {
+				this.addQueue(waitQueue);
+			}
 			this.calcEffectivePriority();
 		}
 
