@@ -737,7 +737,7 @@ public class UserProcess {
 		child.parentProcess = null;
 
 		mapLock.acquire();
-		int status = exitStatuses.get(child.processID);
+		Integer status = exitStatuses.get(child.processID);
 		mapLock.release();
 		
 		if(status == -9999){
