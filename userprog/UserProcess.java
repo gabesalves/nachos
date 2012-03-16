@@ -736,14 +736,17 @@ public class UserProcess {
 		this.childProcesses.remove(child);
 		child.parentProcess = null;
 
-		if(exitStatuses.get(child.processID) == -9999){
+		mapLock.acquire();
+		int status = exitStatuses.get(child.processID);
+		mapLock.release();
+		
+		if(status == -9999){
 			return 0; // unhandle exception
 		}
-
 		//check child's status, to see what to return
-		if(exitStatuses.get(child.processID) != null) {
+		if(status != null) {
 			byte[] buffer = new byte[4];
-			Lib.bytesFromInt(buffer, 0, exitStatuses.get(child.processID));
+			Lib.bytesFromInt(buffer, 0, status);
 			int bytesWritten = writeVirtualMemory(statusAddr, buffer);
 			if (bytesWritten == 4){
 				return 1; //child exited normally
@@ -895,5 +898,4 @@ public class UserProcess {
 	protected OpenFile stdin;
 	protected OpenFile stdout;
 	private Lock mapLock;
-	//test edit
 }
