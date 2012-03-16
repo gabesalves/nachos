@@ -155,6 +155,7 @@ public class LotteryScheduler extends Scheduler {
 		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
 		System.out.println("~~~~~~~~thread2 priority changed to 2~~~~~~~~~`");
 		s.getThreadState(thread2).setPriority(2);
+
 		System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
 		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
 		System.out.println("~~~~~~~~thread2 priority changed to 1~~~~~~~~~`");
@@ -163,10 +164,14 @@ public class LotteryScheduler extends Scheduler {
 		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
 		System.out.println("~~~~~~~~Thread5 waits on queue1~~~~~~~~~`");
 		queue.waitForAccess(thread5);
-		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
-		s.getThreadState(thread4).calcEffectivePriority();
-		System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
 
+		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+
+		System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+		System.out.println("~~~~~~~~thread2 priority changed to 8~~~~~~~~~`");
+		s.getThreadState(thread2).setPriority(8);
+		System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
 		ThreadQueue newQueue;
 
 		KThread thread10;
@@ -411,6 +416,7 @@ public class LotteryScheduler extends Scheduler {
 		}
 
 		public void addToAllEffective(int diff){
+			/*
 			boolean notDone = true;
 			ThreadState current = this;
 			LinkedList<ThreadState> seenSoFar = new LinkedList<ThreadState>();
@@ -431,12 +437,12 @@ public class LotteryScheduler extends Scheduler {
 				}
 			}
 		}
-		/*
+			 */
 			this.effectivePriority += diff;
 			if (this.waiting != null && this.waiting.dequeuedThread != null){
 				this.waiting.dequeuedThread.addToAllEffective(diff);
 			}
-		 */
+		}
 
 		/**
 		 * Called when <tt>waitForAccess(thread)</tt> (where <tt>thread</tt> is
