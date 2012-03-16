@@ -163,7 +163,7 @@ public class UserProcess {
 		int numBytesTransferred = 0;
 		for (int i=firstVirtPage; i<=lastVirtPage; i++){
 			if (!pageTable[i].valid)
-				continue; //skip this page
+				break; //stop reading, return numBytesTransferred for whatever we've written so far
 			int firstVirtAddress = Machine.processor().makeAddress(i, 0);
 			int lastVirtAddress = Machine.processor().makeAddress(i, pageSize-1);
 			int offset1;
@@ -241,7 +241,7 @@ public class UserProcess {
 		int numBytesTransferred = 0;
 		for (int i=firstVirtPage; i<=lastVirtPage; i++){
 			if (!pageTable[i].valid || pageTable[i].readOnly)
-				continue; //skip this page
+				break; //stop writing, return numBytesTransferred for whatever we've written so far
 			int firstVirtAddress = Machine.processor().makeAddress(i, 0);
 			int lastVirtAddress = Machine.processor().makeAddress(i, pageSize-1);
 			int offset1;
