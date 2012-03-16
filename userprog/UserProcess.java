@@ -860,11 +860,8 @@ public class UserProcess {
 			break;				       
 
 		default:
-			Lib.debug(dbgProcess, "Unexpected exception: " +
-					Processor.exceptionNames[cause]);
-			if (parentProcess != null && (parentProcess.exitStatuses.get(this.processID) == null)){
-				parentProcess.exitStatuses.put(this.processID, -9999);
-			}
+			Lib.debug(dbgProcess, "Unexpected exception: " + Processor.exceptionNames[cause]);
+			handleExit(-9999); //abnormal exception, exit with status = -9999
 			//Lib.assertNotReached("Unexpected exception"); <== someone said this kills the entire machine!!!
 		}
 	}
